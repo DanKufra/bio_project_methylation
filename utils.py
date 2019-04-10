@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from consts import *
 import os
-import random
+import json
 
 
 def runRandomForest(train_x, train_y, test_x, test_y, max_depth = 5, num_trees=20, seed=None, class_weights=None):
@@ -18,9 +18,9 @@ def readDataFromBins(dir):
     # read from files
     featuresNames = np.fromfile("%s/featuresNames.bin" % dir, dtype='<U10')
     num_cols = len(featuresNames)
-    X = np.fromfile("%s/X.bin"  % dir).reshape(-1, num_cols)
-    Y = np.fromfile("%s/Y.bin" % dir)
-    sample_weight = np.fromfile("%s/sample_weight.bin" % dir)
+    X = np.fromfile("%s/X.bin"  % dir, dtype=np.uint16).reshape(-1, num_cols)
+    Y = np.fromfile("%s/Y.bin" % dir, dtype=np.uint8)
+    sample_weight = np.fromfile("%s/sample_weight.bin" % dir, dtype=np.float32)
     return X, Y, sample_weight, featuresNames
 
 def read_and_save_data(outpath, file_paths_array, label_array, suffix, is_multi=False):
@@ -62,14 +62,25 @@ def read_and_save_data(outpath, file_paths_array, label_array, suffix, is_multi=
         num_sick = len(np.where(sample_weight == 1)[0])
         not_sick = np.where(sample_weight != 1)[0]
         sample_weight[not_sick] = num_sick / sample_weight[not_sick]
-    import pdb
-    pdb.set_trace()
+
     # dump to files
+    X = X.astype(np.uint16)
+    Y = Y.astype(np.uint8)
+    sample_weight = sample_weight.astype(np.float32)
+    featuresNames = featuresNames.values.astype(np.str)
     X.tofile("%s/X.bin"  %(outpath))
     Y.tofile("%s/Y.bin" %(outpath))
     sample_weight.tofile("%s/sample_weight.bin" %(outpath))
     with open("%s/featuresNames.bin"%(outpath), "wb") as f:
-        f.write(featuresNames.values.astype(str))
+        f.write(featuresNames)
+
+    shape_type_dicts = {"data":{"X": {"N": X.shape[0], "C": X.shape[1], "dtype": X.dtype.name, "description": "Columns are the sites and rows are the patients"},
+                                 "Y": {"N": Y.shape[0], "C": 1, "dtype": Y.dtype.name, "description": "Label of each patient for classification"},
+                                 "sample_weight": {"N": sample_weight.shape[0], "C": 1, "dtype": sample_weight.dtype.name, "description": "Weight each patient gets in this dataset"},
+                                 "featuresNames": {"N": featuresNames.shape[0], "C": 1, "dtype": featuresNames.dtype.name, "description": "Name of each column (each site)"}}}
+
+    with open("%s/info.json" % outpath, 'w') as f:
+        json.dump(shape_type_dicts, f, indent=4)
 
 def createSickHealthyPairsBin():
     for type in PAIRED_SICK_HEALTHY.keys():
@@ -82,15 +93,17 @@ def createSickHealthyPairsBin():
         temp_list.append(PAIRED_SICK_HEALTHY[type][1])
         read_and_save_data(outpath, temp_list, temp_labels, type)
 
-def shuffle_data(X, Y, sample_weight):
+def shuffle_data(X, Y, sample_weight, tt_split=0.3):
     train_idx = []
     test_idx = []
     uniques, counts= np.unique(Y, return_counts=True)
     for unq,cnt in zip(uniques, counts):
-        curr_train_indices = np.random.rand(cnt) > 0.3
+        curr_train_indices = np.random.rand(cnt) > tt_split
         curr_test_indices = np.logical_not(curr_train_indices)
-        train_idx.extend(np.where(Y == unq)[curr_train_indices])
-        test_idx.extend(np.where(Y == unq)[curr_test_indices])
+        train_idx.extend(np.where(Y == unq)[0][curr_train_indices])
+        test_idx.extend(np.where(Y == unq)[0][curr_test_indices])
+    train_idx = np.random.permutation(np.array(train_idx))
+    test_idx = np.random.permutation(np.array(test_idx))
     X_train = X[train_idx]
     Y_train = Y[train_idx]
     sample_weight_train = sample_weight[train_idx]
@@ -102,9 +115,8 @@ def shuffle_data(X, Y, sample_weight):
 
 
 if __name__ == '__main__':
-    createSickHealthyPairsBin()
     for type in PAIRED_SICK_HEALTHY.keys():
         path = "./%s"%type
         X, Y, sample_weight, features_names = readDataFromBins(path)
-        shuffle_data(X, Y, sample_weight)
+        X_train, Y_train, sample_weight_train, X_test, Y_test, sample_weight_test = shuffle_data(X, Y, sample_weight)
 
