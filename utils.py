@@ -1,17 +1,21 @@
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.base import clone
 from consts import *
 import os
 import json
+import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
-def runRandomForest(train_x, train_y, test_x, test_y, max_depth = 5, num_trees=20, seed=None, class_weights=None):
-    clf = RandomForestClassifier(random_state=seed, max_depth=max_depth, n_estimators=num_trees, class_weights=class_weights)
-    clf = clf.fit(train_x, train_y)
+def trainRandomForest(train_x, train_y, max_depth=5, num_trees=20, seed=666, sample_weight=None):
+    clf = RandomForestClassifier(random_state=seed, n_estimators=num_trees)
+    clf = clf.fit(train_x, train_y, sample_weight=sample_weight)
+    return clf
 
 def readDataFromTSV(path):
-    df = pd.read_csv(path, delim_whitespace=True, compression="gzip", index_col=0)
+    df = pd.read_csv(path, delim_whitespace=True, index_col=0)
     return df
 
 def readDataFromBins(dir):
@@ -82,15 +86,15 @@ def read_and_save_data(outpath, file_paths_array, label_array, suffix, is_multi=
     with open("%s/info.json" % outpath, 'w') as f:
         json.dump(shape_type_dicts, f, indent=4)
 
-def createSickHealthyPairsBin():
-    for type in PAIRED_SICK_HEALTHY.keys():
+def createSickHealthyPairsBin(paired_dict=PAIRED_SICK_HEALTHY):
+    for type in paired_dict.keys():
         print("Creating paired data for %s" % type)
         outpath = "./%s"%type
         os.mkdir(outpath)
         temp_labels = OrderedDict({0: tuple((type, True)), 1: tuple((type, False))})
         temp_list = []
-        temp_list.append(PAIRED_SICK_HEALTHY[type][0])
-        temp_list.append(PAIRED_SICK_HEALTHY[type][1])
+        temp_list.append(paired_dict[type][0])
+        temp_list.append(paired_dict[type][1])
         read_and_save_data(outpath, temp_list, temp_labels, type)
 
 def shuffle_data(X, Y, sample_weight, tt_split=0.3):
@@ -113,10 +117,64 @@ def shuffle_data(X, Y, sample_weight, tt_split=0.3):
     return X_train, Y_train, sample_weight_train, X_test, Y_test, sample_weight_test
 
 
+def drop_col_feat_imp(model, X_train, y_train, cols_to_remove=None, random_state = 42):
+
+    # clone the model to have the exact same specification as the one initially trained
+    model_clone = clone(model)
+    # set random_state for comparability
+    model_clone.random_state = random_state
+    # training and scoring the benchmark model
+    model_clone.fit(X_train, y_train)
+    benchmark_score = model_clone.score(X_train, y_train)
+    # list for storing feature importances
+    importances = []
+
+    if cols_to_remove is None:
+        cols_to_remove = X_train.columns
+    # iterating over all columns and storing feature importance (difference between benchmark and new model)
+    for col in tqdm(cols_to_remove):
+        model_clone = clone(model)
+        model_clone.random_state = random_state
+        model_clone.fit(X_train.drop(col, axis = 1), y_train)
+        drop_col_score = model_clone.score(X_train.drop(col, axis = 1), y_train)
+        importances.append(benchmark_score - drop_col_score)
+    imp_df = pd.DataFrame(data={'Feature':cols_to_remove, 'Importance':np.array(importances)})
+    return imp_df
 
 if __name__ == '__main__':
-    for type in PAIRED_SICK_HEALTHY.keys():
+    # createSickHealthyPairsBin(TEST_PAIRED_SICK_HEALTHY)
+    for type in TEST_PAIRED_SICK_HEALTHY.keys():
         path = "./%s"%type
         X, Y, sample_weight, features_names = readDataFromBins(path)
         X_train, Y_train, sample_weight_train, X_test, Y_test, sample_weight_test = shuffle_data(X, Y, sample_weight)
-
+        forest = trainRandomForest(X_train, Y_train, sample_weight_train)
+        importances =  forest.feature_importances_
+        indices = np.argsort(importances)[::-1]
+        importances_df = drop_col_feat_imp(forest, pd.DataFrame(X_train, columns=features_names), Y_train,
+                                           cols_to_remove=features_names[indices][:2000])
+        import pdb
+        pdb.set_trace()
+        # print(forest.score(X_test, Y_test))
+        # importances =  forest.feature_importances_
+        # std = np.std([tree.feature_importances_ for tree in forest.estimators_],
+        #              axis=0)
+        # indices = np.argsort(importances)[::-1]
+        #
+        # # Print the feature ranking
+        # print("Feature ranking:")
+        # N = 10
+        # for f in range(N):
+        #     print("%d. feature %s (%f)" % (f + 1, features_names[indices[f]], importances[indices[f]]))
+        #
+        # # Plot the feature importances of the forest
+        # plt.figure()
+        # plt.title("Feature importances")
+        # plt.bar(range(N), importances[indices][:N],
+        #        color="r", yerr=std[indices][:N], align="center")
+        # plt.xticks(range(N), features_names[indices[:N]])
+        # plt.xlim([-1, N])
+        # plt.show()
+        # # for tree_in_forest in clf.estimators_:
+        # #     best_ftr = np.argmax(tree_in_forest.feature_importances_)
+        # #     print(features_names[best_ftr], tree_in_forest.feature_importances_[best_ftr])
+        #

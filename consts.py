@@ -1,5 +1,8 @@
 from collections import OrderedDict
 
+TEST_PAIRED_SICK_HEALTHY = OrderedDict({'BRCA': tuple(('/Users/Dan/PycharmProjects/bio_project_methylation/BRCA_Primary_Tumor.chr19.tsv',
+                                                       '/Users/Dan/PycharmProjects/bio_project_methylation/BRCA_Solid_Tissue_Normal.chr19.tsv'))})
+
 test_paths_sick = ['/cs/cbio/tommy/TCGA//BRCA_Primary_Tumor.chr19.tsv.gz']
 test_paths_normal = ['/cs/cbio/tommy/TCGA//BRCA_Solid_Tissue_Normal.chr19.tsv.gz']
 test_label_dict = OrderedDict({1: tuple(('BRCA', True)),
