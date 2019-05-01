@@ -1,7 +1,7 @@
 from collections import OrderedDict
 
-TEST_PAIRED_SICK_HEALTHY = OrderedDict({'BRCA': tuple(('/Users/Dan/PycharmProjects/bio_project_methylation/BRCA_Primary_Tumor.chr19.tsv',
-                                                       '/Users/Dan/PycharmProjects/bio_project_methylation/BRCA_Solid_Tissue_Normal.chr19.tsv'))})
+TEST_PAIRED_SICK_HEALTHY = OrderedDict({'BRCA': tuple(('/cs/cbio/tommy/TCGA/BRCA_Primary_Tumor.tsv.gz',
+                                                       '/cs/cbio/tommy/TCGA/BRCA_Solid_Tissue_Normal.tsv.gz'))})
 
 test_paths_sick = ['/cs/cbio/tommy/TCGA//BRCA_Primary_Tumor.chr19.tsv.gz']
 test_paths_normal = ['/cs/cbio/tommy/TCGA//BRCA_Solid_Tissue_Normal.chr19.tsv.gz']
@@ -170,16 +170,16 @@ PATHS_NORMAL = ['/cs/cbio/tommy/TCGA/BRCA_Solid_Tissue_Normal.tsv.gz',
                 '/cs/cbio/tommy/TCGA/SKCM_Solid_Tissue_Normal.tsv.gz',
                 '/cs/cbio/tommy/TCGA/THYM_Solid_Tissue_Normal.tsv.gz']
 
-PAIRED_SICK_HEALTHY = OrderedDict({'BRCA': tuple(('/cs/cbio/tommy/TCGA//BRCA_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/BRCA_Solid_Tissue_Normal.tsv.gz')),
-                                   'LUAD': tuple(('/cs/cbio/tommy/TCGA/LUAD_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/LUAD_Solid_Tissue_Normal.tsv.gz')),
-                                   'LUSC': tuple(('/cs/cbio/tommy/TCGA/LUSC_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/LUSC_Solid_Tissue_Normal.tsv.gz')),
-                                   'COAD': tuple(('/cs/cbio/tommy/TCGA/COAD_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/COAD_Solid_Tissue_Normal.tsv.gz')),
-                                   'KIRP': tuple(('/cs/cbio/tommy/TCGA/KIRP_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/KIRP_Solid_Tissue_Normal.tsv.gz')),
-                                   'LIHC': tuple(('/cs/cbio/tommy/TCGA/LIHC_Primary_Tumor.tsv.gz',  '/cs/cbio/tommy/TCGA/LIHC_Solid_Tissue_Normal.tsv.gz')),
-                                   'PRAD': tuple(('/cs/cbio/tommy/TCGA/PRAD_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/PRAD_Solid_Tissue_Normal.tsv.gz')),
-                                   'THCA': tuple(('/cs/cbio/tommy/TCGA/THCA_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/THCA_Solid_Tissue_Normal.tsv.gz')),
-                                   'HNSC': tuple(('/cs/cbio/tommy/TCGA/HNSC_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/HNSC_Solid_Tissue_Normal.tsv.gz')),
-                                   'UCEC': tuple(('/cs/cbio/tommy/TCGA/UCEC_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/UCEC_Solid_Tissue_Normal.tsv.gz')),
-                                   'KIRC': tuple(('/cs/cbio/tommy/TCGA/KIRC_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/KIRC_Solid_Tissue_Normal.tsv.gz'))})
+PAIRED_SICK_HEALTHY = OrderedDict([('BRCA', tuple(('/cs/cbio/tommy/TCGA//BRCA_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/BRCA_Solid_Tissue_Normal.tsv.gz'))),
+                                   ('LUAD', tuple(('/cs/cbio/tommy/TCGA/LUAD_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/LUAD_Solid_Tissue_Normal.tsv.gz'))),
+                                   ('LUSC', tuple(('/cs/cbio/tommy/TCGA/LUSC_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/LUSC_Solid_Tissue_Normal.tsv.gz'))),
+                                   ('COAD', tuple(('/cs/cbio/tommy/TCGA/COAD_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/COAD_Solid_Tissue_Normal.tsv.gz'))),
+                                   ('KIRP', tuple(('/cs/cbio/tommy/TCGA/KIRP_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/KIRP_Solid_Tissue_Normal.tsv.gz'))),
+                                   ('LIHC', tuple(('/cs/cbio/tommy/TCGA/LIHC_Primary_Tumor.tsv.gz',  '/cs/cbio/tommy/TCGA/LIHC_Solid_Tissue_Normal.tsv.gz'))),
+                                   ('PRAD', tuple(('/cs/cbio/tommy/TCGA/PRAD_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/PRAD_Solid_Tissue_Normal.tsv.gz'))),
+                                   ('THCA', tuple(('/cs/cbio/tommy/TCGA/THCA_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/THCA_Solid_Tissue_Normal.tsv.gz'))),
+                                   ('HNSC', tuple(('/cs/cbio/tommy/TCGA/HNSC_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/HNSC_Solid_Tissue_Normal.tsv.gz'))),
+                                   ('UCEC', tuple(('/cs/cbio/tommy/TCGA/UCEC_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/UCEC_Solid_Tissue_Normal.tsv.gz'))),
+                                   ('KIRC', tuple(('/cs/cbio/tommy/TCGA/KIRC_Primary_Tumor.tsv.gz', '/cs/cbio/tommy/TCGA/KIRC_Solid_Tissue_Normal.tsv.gz')))])
 
 #TODO create df of tissue, sick/normal, path, index, is_sub_type, num_patients
