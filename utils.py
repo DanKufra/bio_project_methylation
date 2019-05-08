@@ -5,13 +5,10 @@ from sklearn.base import clone
 from consts import *
 import os
 import json
-import matplotlib.pyplot as plt
 from tqdm import tqdm
-import argparse as argparse
-
 
 def trainRandomForest(train_x, train_y, max_depth=3, num_trees=10, seed=666, sample_weight=None):
-    clf = RandomForestClassifier(random_state=seed, n_estimators=num_trees)
+    clf = RandomForestClassifier(random_state=seed, max_depth=max_depth, n_estimators=num_trees)
     clf = clf.fit(train_x, train_y, sample_weight=sample_weight)
     return clf
 
@@ -21,15 +18,13 @@ def predictRandomForest(clf, x_test, y_test):
     pos_num = np.sum(y_test)
     neg_num = y_test.shape[0] - pos_num
     # get masks
-    true_ind_mask = preds == y_test
-    false_ind_mask = np.logical_not(true_ind_mask)
-
+    correct_ind_mask = preds == y_test
     # calc TPR
-    TPR = np.sum(true_ind_mask & (y_test == 1)) / pos_num
+    TPR = np.sum(correct_ind_mask & (y_test == 1)) / pos_num
     # calc TNR
-    TNR = np.sum(true_ind_mask & (y_test == 0)) / neg_num
+    TNR = np.sum(correct_ind_mask & (y_test == 0)) / neg_num
     # calc ACC
-    ACC = np.sum(true_ind_mask) / float(y_test.shape[0])
+    ACC = np.sum(correct_ind_mask) / float(y_test.shape[0])
     return TPR, TNR, ACC
 
 def readDataFromTSV(path):
@@ -112,11 +107,12 @@ def read_and_save_data(outpath, file_paths_array, label_array, suffix, is_multi=
     with open("%s/info.json" % outpath, 'w') as f:
         json.dump(shape_type_dicts, f, indent=4)
 
-def createSickHealthyPairsBin(outpath, paired_dict=PAIRED_SICK_HEALTHY):
+def createSickHealthyPairsBin(outpath, paired_dict=PAIRED_SICK_HEALTHY, verbose=0):
     for type, val in paired_dict.items():
         curr_outpath = "%s/sickHealthy/%s"%(outpath, type)
         os.mkdir(curr_outpath)
-        print("Creating paired data for %s in %s" % (type, curr_outpath))
+        if verbose:
+            print("Creating paired data for %s in %s" % (type, curr_outpath))
         currlabels = OrderedDict({'Sick': tuple((type, True)), 'Healthy': tuple((type, False))})
         curr_paths = []
         curr_paths.append(paired_dict[type][0])
@@ -126,12 +122,15 @@ def createSickHealthyPairsBin(outpath, paired_dict=PAIRED_SICK_HEALTHY):
 def shuffle_data(X, Y, sample_weight, tt_split=0.3):
     train_idx = []
     test_idx = []
+    # get unique labels and their counts
     uniques, counts= np.unique(Y, return_counts=True)
+    # split each label into train and test indices
     for unq,cnt in zip(uniques, counts):
         curr_train_indices = np.random.rand(cnt) > tt_split
         curr_test_indices = np.logical_not(curr_train_indices)
         train_idx.extend(np.where(Y == unq)[0][curr_train_indices])
         test_idx.extend(np.where(Y == unq)[0][curr_test_indices])
+    # shuffle in train and test after the split
     train_idx = np.random.permutation(np.array(train_idx))
     test_idx = np.random.permutation(np.array(test_idx))
     X_train = X[train_idx]
@@ -170,70 +169,6 @@ def drop_col_feat_imp(model, X_train, y_train, cols_to_remove=None, random_state
     imp_df = pd.DataFrame(data={'Feature':cols_to_remove, 'Importance':np.array(importances)})
     return imp_df
 
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('outpath', type=str,
-                        help='Outpath of our data and sites')
-    parser.add_argument('--createBins', type=int, default=0,
-                        help='Whether to create binary files of pairs. 0=False,1=SickHealthy,2=HealthyHealthy,3=Both')
-    parser.add_argument('--dumpSites', type=int, default=0,
-                        help='Whether to dump sites of pairs. 0=False,1=SickHealthy,2=HealthyHealthy,3=Both')
-    parser.add_argument('--n', type=int, default=200,
-                        help='Number of sites to dump per pair')
-    parser.add_argument('--num_trees', type=int, default=10,
-                        help='Number of trees for random forest')
-    parser.add_argument('--depth', type=int, default=3,
-                        help='Depth of tree')
-    args = parser.parse_args()
-    return args
-
-if __name__ == '__main__':
-    args = parse_args()
-    if args.createBins == 1:
-        createSickHealthyPairsBin(args.outpath, PAIRED_SICK_HEALTHY)
-    elif args.createBins == 2:
-        # createSickHealthyPairsBin(args.outpath, PAIRED_SICK_HEALTHY)
-        pass
-    elif args.createBins == 3:
-        createSickHealthyPairsBin(args.outpath, PAIRED_SICK_HEALTHY)
-        pass
-    if args.dumpSites == 1:
-        df_illumina_sorted = pd.read_csv('/cs/cbio/dank/project/indices/Illumina_450k_sorted.txt', sep='\t', names=['chr', 'locus', 'illumina_id'])
-        df_illumina_sorted.set_index('illumina_id', inplace=True)
-        # df_illumina_sorted.locus = df_illumina_sorted.locus.apply(np.int64)
-        df_illumina_sorted.locus = df_illumina_sorted.locus.astype(np.str)
-        df_bed = pd.read_csv('/cs/cbio/dank/project/indices/CpG.bed.gz', sep='\t',names=['chr', 'locus', 'cpg_index'])
-        df_bed.locus = df_bed.locus.astype(np.str)
-        df_bed.set_index(['locus', 'chr'], inplace=True)
-
-        for type in tqdm(PAIRED_SICK_HEALTHY.keys()):
-            tqdm.write("Calculating important sites for data type %s" % type)
-            path = "%s/sickHealthy/%s" % (args.outpath, type)
-            # read the binary date
-            X, Y, sample_weight, features_names = readDataFromBins(path)
-            # shuffle this data
-            X_train, Y_train, sample_weight_train, X_test, Y_test, sample_weight_test = shuffle_data(X, Y, sample_weight)
-            # we want to dump n sites, so train the random forest, get the most important feature and dump it
-            important_features = []
-            for i in tqdm(range(args.n)):
-                forest = trainRandomForest(X_train, Y_train, sample_weight= sample_weight_train, max_depth=args.depth, num_trees=args.num_trees)
-                TPR, TNR, ACC = predictRandomForest(forest, X_test, Y_test)
-                tqdm.write("TPR %f, TNR %f, ACC %f"%(TPR, TNR, ACC))
-                importances = forest.feature_importances_
-                most_important_ind = np.argmax(importances)
-                # add best feature to np array
-                important_features.append(features_names[most_important_ind].astype(np.str))
-                # remove the feature before next iteration
-                X_train = np.delete(X_train, most_important_ind, axis=1)
-                X_test = np.delete(X_test, most_important_ind, axis=1)
-                features_names = np.delete(features_names, most_important_ind)
-
-            df_illumina_sites = pd.DataFrame(np.array(important_features), columns=['illumina_id'])
-            # join sites with illumina_id
-            final_df = df_illumina_sites.join(df_illumina_sorted, on='illumina_id', how='left')
-            final_df = final_df.join(df_bed, on=['locus', 'chr'], how='left')
-            dumpSitesToTSV("%s/sickHealthy/%s/site_predictions_%s.tsv" % (args.outpath, type, type), final_df)
 
     # for type in TEST_PAIRED_SICK_HEALTHY.keys():
     #     path = "./%s"%type

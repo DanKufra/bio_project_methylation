@@ -1,3 +1,8 @@
 Gives a few dozen sites for differentation between:
  1. each pair of healthy/sick tissues, try to find sites that are not noisy in blood data
  2. each pair of healthy tissues
+
+Questions:
+1. Do we want sites that indicate there is cancer when methylated, or also vice versa?
+2. Do we want sites that are close to each other or far?
+3. How do we check if the sites found are noisy in the blood data?
