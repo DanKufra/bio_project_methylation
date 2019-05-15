@@ -6,3 +6,10 @@ Questions:
 1. Do we want sites that indicate there is cancer when methylated, or also vice versa?
 2. Do we want sites that are close to each other or far?
 3. How do we check if the sites found are noisy in the blood data?
+
+TODOS:
+1. Test healthy healthy creation
+2. Test random forest on multi-label
+3. Create predictor for multi label random forest (confusion matrix or TPR TNR of each label)
+4. Maybe in healthy/healthy we want to dump which direction the site decided in (i.e methylation -> type1 or type2
+5. Clean up code duplication of healthy/healthy
