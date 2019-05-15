@@ -6,6 +6,7 @@ from consts import *
 import os
 import json
 from tqdm import tqdm
+import re
 
 def train_random_forest(train_x, train_y, max_depth=3, num_trees=10, seed=666, sample_weight=None):
     clf = RandomForestClassifier(random_state=seed, max_depth=max_depth, n_estimators=num_trees)
