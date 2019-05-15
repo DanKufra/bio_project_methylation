@@ -28,20 +28,17 @@ def predict_random_forest(clf, x_test, y_test):
     acc = np.sum(correct_ind_mask) / float(y_test.shape[0])
     return tpr, tnr, acc
 
-def predict_random_forest_ulti(clf, x_test, y_test):
+def predict_random_forest_multi(clf, x_test, y_test, labels):
     preds = clf.predict(x_test)
+    tprs = np.zeros_like(labels)
     # get some basic stats
-    pos_num = np.sum(y_test)
-    neg_num = y_test.shape[0] - pos_num
-    # get masks
     correct_ind_mask = preds == y_test
-    # calc TPR
-    tpr = np.sum(correct_ind_mask & (y_test == 1)) / pos_num
-    # calc TNR
-    tnr = np.sum(correct_ind_mask & (y_test == 0)) / neg_num
-    # calc ACC
+    for i, label in enumerate(labels):
+        curr_label_mask = y_test == label
+        tprs[i] = np.sum(correct_ind_mask & curr_label_mask) / np.sum(curr_label_mask)
+        tnrs[i] = np.sum(correct_ind_mask & np.logical_not(curr_label_mask)) / np.sum(curr_label_mask)
     acc = np.sum(correct_ind_mask) / float(y_test.shape[0])
-    return tpr, tnr, acc
+    return tprs, tnrs, acc
 
 def read_data_from_tsv(path):
     df = pd.read_csv(path, delim_whitespace=True, index_col=0)

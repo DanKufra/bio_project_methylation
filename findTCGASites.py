@@ -5,7 +5,7 @@ from consts import *
 from tqdm import tqdm
 import argparse as argparse
 
-def find_important_features(x, y, sample_weight, features_names, args):
+def find_important_features(x, y, sample_weight, features_names, is_multi, args):
     # shuffle this data
     x_train, y_train, sample_weight_train, x_test, y_test, sample_weight_test = shuffle_data(x, y, sample_weight)
     important_features = []
@@ -17,7 +17,7 @@ def find_important_features(x, y, sample_weight, features_names, args):
         forest = train_random_forest(x_train, y_train, sample_weight= sample_weight_train, max_depth=args.depth, num_trees=args.num_trees)
         # calculate basic statistics for this iteration
         if is_multi:
-            TPR, TNR, ACC = predict_random_forest_multi(forest, x_test, y_test)
+            TPRS, TNRS, ACC = predict_random_forest_multi(forest, x_test, y_test, np.unique(y_test))
         else:
             TPR, TNR, ACC = predict_random_forest(forest, x_test, y_test)
         if TPR < args.min_TPR_for_dump:
@@ -53,11 +53,11 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('outpath', type=str,
                         help='Outpath of our data and sites')
-    parser.add_argument('--createBins', type=int, default=0,
+    parser.add_argument('--create_bins', type=int, default=0,
                         help='Whether to create binary files of pairs. 0=False,1=SickHealthy,2=HealthyHealthy,3=Both')
-    parser.add_argument('--dumpSites', type=int, default=0,
+    parser.add_argument('--dump_sites', type=int, default=0,
                         help='Whether to dump sites of pairs. 0=False,1=SickHealthy,2=HealthyHealthy,3=Both')
-    parser.add_argument('--filesExist', type=bool, default=True,
+    parser.add_argument('--files_exist', type=bool, default=True,
                         help="Whether binary files exist, if they don't need to build them in RAM")
     parser.add_argument('--n', type=int, default=200,
                         help='Number of sites to dump per pair')
@@ -74,9 +74,9 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    if args.createBins == 1 or args.createBins == 3:
+    if args.create_bins == 1 or args.create_bins == 3:
         create_sick_healthy_pairs_bin(args.outpath, PAIRED_SICK_HEALTHY, verbose=args.verbose)
-    elif args.createBins == 2 or args.createBins == 3:
+    elif args.create_bins == 2 or args.create_bins == 3:
         # create array of paired paths for all pairs of healthy
         a = np.array(PATHS_NORMAL_SUBTYPE)
         i, j = np.triu_indices(len(a), 1)
@@ -86,7 +86,7 @@ if __name__ == '__main__':
         # create the binary files of said pairs
         create_healthy_healthy_pairs_bin(args.outpath, paired_array, paired_types, verbose=args.verbose)
 
-    if args.dumpSites > 0:
+    if args.dump_sites > 0:
         # read illumina and cpg.bed files in order to join dataframes later on
         df_illumina_sorted = pd.read_csv('/cs/cbio/dank/project/indices/Illumina_450k_sorted.txt', sep='\t', names=['chr', 'locus', 'illumina_id'])
         df_illumina_sorted.set_index('illumina_id', inplace=True)
@@ -95,7 +95,7 @@ if __name__ == '__main__':
         df_bed.locus = df_bed.locus.astype(np.str)
         df_bed.set_index(['locus', 'chr'], inplace=True)
 
-    if args.dumpSites == 1 or args.dumpSites == 3:
+    if args.dump_sites == 1 or args.dump_sites == 3:
         for type in tqdm(PAIRED_SICK_HEALTHY.keys()):
             if args.verbose >= 1:
                 tqdm.write("Calculating important sites for data type %s" % type)
@@ -108,13 +108,13 @@ if __name__ == '__main__':
                 x, y, sample_weight, features_names = create_one_sick_healthy_pair(args.outpath, PAIRED_SICK_HEALTHY,
                                                                                    type, verbose=args.verbose, dump_to_file=False)
 
-            important_features, stats = find_important_features(x, y, sample_weight, features_names, args)
+            important_features, stats = find_important_features(x, y, sample_weight, features_names, False, args)
 
             outpath = "%s/sickHealthy/%s/site_predictions_%s.tsv" % (args.outpath, type, type)
 
             merge_indices_and_dump(outpath, important_features, stats, df_illumina_sorted, df_bed)
 
-    if args.dumpSites == 2 or args.dumpSites == 3:
+    if args.dump_sites == 2 or args.dump_sites == 3:
         # create array of paired paths for all pairs of healthy
         a = np.array(PATHS_NORMAL_SUBTYPE)
         i, j = np.triu_indices(len(a), 1)
@@ -134,7 +134,7 @@ if __name__ == '__main__':
                 # just create the binary data for current pair and keep in RAM
                 x, y, sample_weight, features_names = create_one_healthy_healthy_pair(args.outpath, paired_array[i], type1, type2, verbose=args.verbose, dump_to_file=False)
 
-            important_features, stats = find_important_features(x, y, sample_weight, features_names, args)
+            important_features, stats = find_important_features(x, y, sample_weight, features_names, False, args)
 
             outpath = "%s/healthyHealthy/%s/site_predictions_%s.tsv" % (args.outpath, type1, type2)
 

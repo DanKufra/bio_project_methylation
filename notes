@@ -1,4 +1,4 @@
-Gives a few dozen sites for differentation between:
+Gives a variable number of sites for differentation between:
  1. each pair of healthy/sick tissues, try to find sites that are not noisy in blood data
  2. each pair of healthy tissues
 
@@ -9,6 +9,7 @@ Questions:
 
 TODOS:
 1. Test healthy healthy creation
-2. Test random forest on multi-label
+2. Test random forest on multi-label (all types? all similar types?)
 3. Create predictor for multi label random forest (confusion matrix or TPR TNR of each label)
 4. Maybe in healthy/healthy we want to dump which direction the site decided in (i.e methylation -> type1 or type2
+5. Create visualizations for code
