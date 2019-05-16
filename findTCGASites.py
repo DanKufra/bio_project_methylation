@@ -17,14 +17,14 @@ def find_important_features(x, y, sample_weight, features_names, is_multi, args)
         forest = train_random_forest(x_train, y_train, sample_weight= sample_weight_train, max_depth=args.depth, num_trees=args.num_trees)
         # calculate basic statistics for this iteration
         if is_multi:
-            TPRS, TNRS, ACC = predict_random_forest_multi(forest, x_test, y_test, np.unique(y_test))
+            tprs, tnrs, acc = predict_random_forest_multi(forest, x_test, y_test, np.unique(y_test))
         else:
-            TPR, TNR, ACC = predict_random_forest(forest, x_test, y_test)
-        if TPR < args.min_TPR_for_dump:
+            tpr, tnr, acc = predict_random_forest(forest, x_test, y_test)
+        if tpr < args.min_TPR_for_dump:
             continue
         if args.verbose == 2:
-            tqdm.write("TPR %f, TNR %f, ACC %f"%(TPR, TNR, ACC))
-        stats[count] = [TPR, TNR, ACC]
+            tqdm.write("TPR %f, TNR %f, ACC %f"%(tpr, tnr, acc))
+        stats[count] = [tpr, tnr, acc]
         importances = forest.feature_importances_
         most_important_ind = np.argmax(importances)
         # add best feature to np array
