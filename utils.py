@@ -124,7 +124,7 @@ def create_one_healthy_healthy_pair(outpath, pair_paths, type1, type2, verbose=0
     curr_outpath = "%s/healthyHealthy/%s_%s"%(outpath, type1, type2)
     os.makedirs(curr_outpath, exist_ok=True)
     if verbose:
-        print("Creating paired data for %s in %s" % (type, curr_outpath))
+        print("Creating paired data for %s and %s in %s" % (type1, type2, curr_outpath))
     curr_labels = OrderedDict({'Healthy1': tuple((type1, 1)), 'Healthy2': tuple((type2, 0))})
     x, y, sample_weight, features_names = read_and_save_data(curr_outpath, pair_paths, curr_labels, is_multi=True, dump_to_file=dump_to_file)
     return x, y, sample_weight, features_names
