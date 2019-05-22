@@ -28,7 +28,7 @@ def find_important_features(x, y, sample_weight, features_names, is_multi, args)
         importances = forest.feature_importances_
         most_important_ind = np.argmax(importances)
         # add best feature to np array
-        important_features.append(features_names[most_important_ind].astype(np.str))
+        important_features.append(np.array(features_names[most_important_ind]).astype(np.str))
         # remove the feature before next iteration
         x_train = np.delete(x_train, most_important_ind, axis=1)
         x_test = np.delete(x_test, most_important_ind, axis=1)
@@ -57,7 +57,9 @@ def parse_args():
                         help='Whether to create binary files of pairs. 0=False,1=SickHealthy,2=HealthyHealthy,3=Both')
     parser.add_argument('--dump_sites', type=int, default=0,
                         help='Whether to dump sites of pairs. 0=False,1=SickHealthy,2=HealthyHealthy,3=Both')
-    parser.add_argument('--files_exist', type=bool, default=True,
+    parser.add_argument('--convert_to_blocks', type=int, default=0,
+                        help='Whether to convert sites to blocks of pairs. 0=False,1=SickHealthy,2=HealthyHealthy,3=Both')
+    parser.add_argument('--files_exist', type=bool, default=False,
                         help="Whether binary files exist, if they don't need to build them in RAM")
     parser.add_argument('--n', type=int, default=200,
                         help='Number of sites to dump per pair')
@@ -65,7 +67,7 @@ def parse_args():
                         help='Number of trees for random forest')
     parser.add_argument('--depth', type=int, default=3,
                         help='Depth of tree')
-    parser.add_argument('--min_TPR_for_dump', type=float, default=0.75,
+    parser.add_argument('--min_TPR_for_dump', type=float, default=0.0,
                         help='Minimal TPR for dumping a site')
     parser.add_argument('--verbose', type=int, default=1,
                         help='Verbosity of script')
@@ -87,6 +89,8 @@ if __name__ == '__main__':
         create_healthy_healthy_pairs_bin(args.outpath, paired_array, paired_types, verbose=args.verbose)
 
     if args.dump_sites > 0:
+        if args.verbose > 0:
+            print("Loading important data (only done once)")
         # read illumina and cpg.bed files in order to join dataframes later on
         df_illumina_sorted = pd.read_csv('/cs/cbio/dank/project/indices/Illumina_450k_sorted.txt', sep='\t', names=['chr', 'locus', 'illumina_id'])
         df_illumina_sorted.set_index('illumina_id', inplace=True)
@@ -100,7 +104,7 @@ if __name__ == '__main__':
             if args.verbose >= 1:
                 tqdm.write("Calculating important sites for data type %s" % type)
             path = "%s/sickHealthy/%s" % (args.outpath, type)
-            if args.filesExist:
+            if args.files_exist:
                 # read the binary data
                 x, y, sample_weight, features_names = read_data_from_bins(path)
             else:
@@ -110,15 +114,23 @@ if __name__ == '__main__':
 
             important_features, stats = find_important_features(x, y, sample_weight, features_names, False, args)
 
-            outpath = "%s/sickHealthy/%s/site_predictions_%s.tsv" % (args.outpath, type, type)
 
             merge_indices_and_dump(outpath, important_features, stats, df_illumina_sorted, df_bed)
 
+    if args.convert_to_blocks == 1 or args.convert_to_blocks == 3:
+        for type in tqdm(PAIRED_SICK_HEALTHY.keys()):
+            if args.verbose >= 1:
+                tqdm.write("Converting blocks for important sites for data type %s" % type)
+            csv_path = "%s/sickHealthy/%s/site_predictions_%s.tsv" % (args.outpath, type, type)
+
+            outpath = "%s/sickHealthy/%s/site_predictions_%s_blocks.tsv" % (args.outpath, type, type)
+            sites_to_blocks(csv_path, outpath)
+
+    # create array of paired paths for all pairs of healthy
+    a = np.array(PATHS_NORMAL_SUBTYPE)
+    i, j = np.triu_indices(len(a), 1)
+    paired_array = np.stack([a[i], a[j]]).T
     if args.dump_sites == 2 or args.dump_sites == 3:
-        # create array of paired paths for all pairs of healthy
-        a = np.array(PATHS_NORMAL_SUBTYPE)
-        i, j = np.triu_indices(len(a), 1)
-        paired_array = np.stack([a[i], a[j]]).T
         prog = re.compile('.+/(.+)_Solid_Tissue_Normal.*')
         paired_types = [[prog.match(pair[0])[1], prog.match(pair[1])[1]] for pair in paired_array]
         for i in tqdm(np.arange(paired_array.shape[0])):
@@ -127,7 +139,7 @@ if __name__ == '__main__':
             if args.verbose >= 1:
                 tqdm.write("Calculating important sites for data types %s and %s" % (type1, type2))
             path = "%s/HealthyHealthy/%s_%s" % (args.outpath, type1, type2)
-            if args.filesExist:
+            if args.files_exist:
                 # read the binary data
                 x, y, sample_weight, features_names = read_data_from_bins(path)
             else:
@@ -136,7 +148,17 @@ if __name__ == '__main__':
 
             important_features, stats = find_important_features(x, y, sample_weight, features_names, False, args)
 
-            outpath = "%s/healthyHealthy/%s/site_predictions_%s.tsv" % (args.outpath, type1, type2)
+            outpath = "%s/healthyHealthy/%s_%s/site_predictions_%s_%s.tsv" % (args.outpath, type1, type2, type1, type2)
 
             merge_indices_and_dump(outpath, important_features, stats, df_illumina_sorted, df_bed)
+
+    if args.convert_to_blocks == 2 or args.convert_to_blocks == 3:
+        for i in tqdm(np.arange(paired_array.shape[0])):
+            type1 = paired_types[i][0]
+            type2 = paired_types[i][1]
+            if args.verbose > 1:
+                tqdm.write("Converting blocks for important sites for data types %s and %s" % (type1, type2))
+            csv_path = "%s/healthyHealthy/%s_%s/site_predictions_%s_%s.tsv" % (args.outpath, type1, type2, type1, type2)
+            outpath = "%s/healthyHealthy/%s_%s/site_predictions_%s_%s_blocks.tsv" % (args.outpath, type1, type2, type1, type2)
+            sites_to_blocks(csv_path, outpath)
 

@@ -13,3 +13,16 @@ TODOS:
 3. Create predictor for multi label random forest (confusion matrix or TPR TNR of each label)
 4. Maybe in healthy/healthy we want to dump which direction the site decided in (i.e methylation -> type1 or type2
 5. Create visualizations for code
+
+
+General:
+Block file:
+/cs/cbio/netanel/blocks/outputs/nps20_genome.tsv.gz
+col1: chr
+col2: locus start
+col3: locus end
+col4: cpg start
+col5 cpg end
+
+Merge and add new column with format from blocks:
+chr#:locus_start-locus_end

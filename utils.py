@@ -1,4 +1,5 @@
 import numpy as np
+import subprocess
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.base import clone
@@ -7,6 +8,7 @@ import os
 import json
 from tqdm import tqdm
 import re
+from io import StringIO
 
 def train_random_forest(train_x, train_y, max_depth=3, num_trees=10, seed=666, sample_weight=None):
     clf = RandomForestClassifier(random_state=seed, max_depth=max_depth, n_estimators=num_trees)
@@ -31,6 +33,7 @@ def predict_random_forest(clf, x_test, y_test):
 def predict_random_forest_multi(clf, x_test, y_test, labels):
     preds = clf.predict(x_test)
     tprs = np.zeros_like(labels)
+    tnrs = np.zeros_like(labels)
     # get some basic stats
     correct_ind_mask = preds == y_test
     for i, label in enumerate(labels):
@@ -96,10 +99,10 @@ def read_and_save_data(outpath, file_paths_array, label_array, is_multi=False, d
 
         sample_weight[not_sick] = num_sick / sample_weight[not_sick]
 
+    x = x.values.transpose()
+    x = x.astype(np.uint16)
     if dump_to_file:
         # dump to files
-        x = x.values.transpose()
-        x = x.astype(np.uint16)
         x.tofile("%s/X.bin" % outpath)
         y = y.astype(np.uint8)
         sample_weight = sample_weight.astype(np.float32)
@@ -113,13 +116,13 @@ def read_and_save_data(outpath, file_paths_array, label_array, is_multi=False, d
                                      "sample_weight": {"N": sample_weight.shape[0], "C": 1, "dtype": sample_weight.dtype.name, "description": "Weight each patient gets in this dataset"},
                                      "featuresNames": {"N": features_names.shape[0], "C": 1, "dtype": 'np.str', "description": "Name of each column (each site)"}}}
 
-        with open("%s/info.json" % outpath, 'w') as f:
+        with open("%s/info.json" % outpath, 'w+') as f:
             json.dump(shape_type_dicts, f, indent=4)
     return x, y, sample_weight, features_names
 
 def create_one_healthy_healthy_pair(outpath, pair_paths, type1, type2, verbose=0, dump_to_file=True):
-    curr_outpath = "%s/sickHealthy/%s_%s"%(outpath, type1, type2)
-    os.mkdir(curr_outpath)
+    curr_outpath = "%s/healthyHealthy/%s_%s"%(outpath, type1, type2)
+    os.makedirs(curr_outpath, exist_ok=True)
     if verbose:
         print("Creating paired data for %s in %s" % (type, curr_outpath))
     curr_labels = OrderedDict({'Healthy1': tuple((type1, 1)), 'Healthy2': tuple((type2, 0))})
@@ -128,7 +131,7 @@ def create_one_healthy_healthy_pair(outpath, pair_paths, type1, type2, verbose=0
 
 def create_one_sick_healthy_pair(outpath, paired_dict, type, verbose=0, dump_to_file=True):
     curr_outpath = "%s/sickHealthy/%s"%(outpath, type)
-    os.mkdir(curr_outpath)
+    os.makedirs(curr_outpath, exist_ok=True)
     if verbose:
         print("Creating paired data for %s in %s" % (type, curr_outpath))
     curr_labels = OrderedDict({'Sick': tuple((type, True)), 'Healthy': tuple((type, False))})
@@ -150,13 +153,13 @@ def shuffle_data(x, y, sample_weight, tt_split=0.3):
     train_idx = []
     test_idx = []
     # get unique labels and their counts
-    uniques, counts= np.unique(Y, return_counts=True)
+    uniques, counts= np.unique(y, return_counts=True)
     # split each label into train and test indices
     for unq,cnt in zip(uniques, counts):
         curr_train_indices = np.random.rand(cnt) > tt_split
         curr_test_indices = np.logical_not(curr_train_indices)
-        train_idx.extend(np.where(Y == unq)[0][curr_train_indices])
-        test_idx.extend(np.where(Y == unq)[0][curr_test_indices])
+        train_idx.extend(np.where(y == unq)[0][curr_train_indices])
+        test_idx.extend(np.where(y == unq)[0][curr_test_indices])
     # shuffle in train and test after the split
     train_idx = np.random.permutation(np.array(train_idx))
     test_idx = np.random.permutation(np.array(test_idx))
@@ -170,7 +173,7 @@ def shuffle_data(x, y, sample_weight, tt_split=0.3):
 
 
 def dump_sites_to_tsv(outpath, sites):
-    sites.to_csv(outpath, sep='\t', index=False)
+    sites.to_csv(outpath, sep='\t', index=False, float_format='%.3f')
 
 def drop_col_feat_imp(model, x_train, y_train, cols_to_remove=None, random_state = 42):
 
@@ -195,6 +198,42 @@ def drop_col_feat_imp(model, x_train, y_train, cols_to_remove=None, random_state
         importances.append(benchmark_score - drop_col_score)
     imp_df = pd.DataFrame(data={'Feature':cols_to_remove, 'Importance':np.array(importances)})
     return imp_df
+
+
+def load_dict_section(region, cpg_index):
+    cmd = 'tabix {} {}'.format('/cs/cbio/netanel/blocks/outputs/nps20_genome.tsv.gz', region)
+    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, error = proc.communicate()
+
+    if proc.returncode == 0:
+        txt = output.decode()
+        if not txt:
+            return pd.DataFrame()
+        with StringIO(txt) as buffer:
+            df = pd.read_csv(buffer, sep='\t', header=None, names=['chr', 'start', 'end', 'startCpG', 'endCpG'])
+            df['cpg_index'] = cpg_index
+            return df
+    else:
+        raise IOError('OOPS')
+
+def inflate_df(df):
+    rf = pd.DataFrame(columns=['chr', 'start', 'end', 'startCpG', 'endCpG', 'cpg_index'])
+    for i in np.arange(len(df)):
+        # load relevant section from the dictionary:
+        dict_region = '{}:{}-{}'.format(df.iloc[i].chr, df.iloc[i].locus, df.iloc[i].locus)
+        rf = rf.append(load_dict_section(dict_region, df.iloc[i].cpg_index), ignore_index=True)
+    return rf
+    # merge df with dictionary:
+    # res = pd.merge_asof(df, rf, by='chr', left_on='locus', right_on='start', direction='forward')
+
+    # dump
+    # res.to_csv(self.opath, sep='\t', index=None, header=None)
+
+def sites_to_blocks(csv_path, out_path):
+    df = pd.read_csv(csv_path, delim_whitespace=True, index_col=0)
+    rf =  inflate_df(df)
+    dump_sites_to_tsv(out_path, rf)
+
 
 
     # for type in TEST_PAIRED_SICK_HEALTHY.keys():
