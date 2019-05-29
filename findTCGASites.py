@@ -153,6 +153,8 @@ if __name__ == '__main__':
             merge_indices_and_dump(outpath, important_features, stats, df_illumina_sorted, df_bed)
 
     if args.convert_to_blocks == 2 or args.convert_to_blocks == 3:
+        prog = re.compile('.+/(.+)_Solid_Tissue_Normal.*')
+        paired_types = [[prog.match(pair[0])[1], prog.match(pair[1])[1]] for pair in paired_array]
         for i in tqdm(np.arange(paired_array.shape[0])):
             type1 = paired_types[i][0]
             type2 = paired_types[i][1]

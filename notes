@@ -8,12 +8,11 @@ Questions:
 3. How do we check if the sites found are noisy in the blood data?
 
 TODOS:
-1. Test healthy healthy creation
 2. Test random forest on multi-label (all types? all similar types?)
 3. Create predictor for multi label random forest (confusion matrix or TPR TNR of each label)
-4. Maybe in healthy/healthy we want to dump which direction the site decided in (i.e methylation -> type1 or type2
+4. Maybe in healthy/healthy we want to dump which direction the site decided in (i.e methylation -> type1 or type2)
 5. Create visualizations for code
-
+6. Run SVM or logistic regression on just the sites
 
 General:
 Block file:
