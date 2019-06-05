@@ -25,3 +25,8 @@ col5 cpg end
 
 Merge and add new column with format from blocks:
 chr#:locus_start-locus_end
+
+#####################################################################################################3
+1. Implemented random forest between sick-healthy and healthy-healthy and used it to output the "most important feature" i.e the root of one of the decision trees/
+    a. Achieved high accuracy
+2. Ran SVM on just those features to try and distinguish between sick-healthy and healthy-healthy:

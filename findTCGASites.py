@@ -5,7 +5,7 @@ from consts import *
 from tqdm import tqdm
 import argparse as argparse
 
-def find_important_features(x, y, sample_weight, features_names, is_multi, args):
+def find_important_features(x, y, sample_weight, features_names, is_multi, args, most_important=True):
     # shuffle this data
     x_train, y_train, sample_weight_train, x_test, y_test, sample_weight_test = shuffle_data(x, y, sample_weight)
     important_features = []
@@ -26,7 +26,10 @@ def find_important_features(x, y, sample_weight, features_names, is_multi, args)
             tqdm.write("TPR %f, TNR %f, ACC %f"%(tpr, tnr, acc))
         stats[count] = [tpr, tnr, acc]
         importances = forest.feature_importances_
-        most_important_ind = np.argmax(importances)
+        if(most_important):
+            most_important_ind = np.argmax(importances)
+        else:
+            most_important_ind = np.argmin(importances)
         # add best feature to np array
         important_features.append(np.array(features_names[most_important_ind]).astype(np.str))
         # remove the feature before next iteration
