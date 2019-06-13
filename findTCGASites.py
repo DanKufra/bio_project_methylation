@@ -5,7 +5,7 @@ from consts import *
 from tqdm import tqdm
 import argparse as argparse
 
-def find_important_features(x, y, sample_weight, features_names, is_multi, args, most_important=True):
+def find_important_features(x, y, sample_weight, features_names, is_multi, args, most_important=True, return_all=False):
     # shuffle this data
     x_train, y_train, sample_weight_train, x_test, y_test, sample_weight_test = shuffle_data(x, y, sample_weight)
     important_features = []
@@ -13,6 +13,8 @@ def find_important_features(x, y, sample_weight, features_names, is_multi, args,
     pbar = tqdm(total=args.n)
     count = 0
     # we want to dump n sites, so train the random forest, get the most important feature and dump it
+    x_train_cur = x_train.copy()
+    x_test_cur = x_test.copy()
     while count <  args.n:
         forest = train_random_forest(x_train, y_train, sample_weight= sample_weight_train, max_depth=args.depth, num_trees=args.num_trees)
         # calculate basic statistics for this iteration
@@ -33,13 +35,20 @@ def find_important_features(x, y, sample_weight, features_names, is_multi, args,
         # add best feature to np array
         important_features.append(np.array(features_names[most_important_ind]).astype(np.str))
         # remove the feature before next iteration
-        x_train = np.delete(x_train, most_important_ind, axis=1)
-        x_test = np.delete(x_test, most_important_ind, axis=1)
+        try:
+            x_train = np.delete(x_train, most_important_ind, axis=1)
+            x_test = np.delete(x_test, most_important_ind, axis=1)
+        except ValueError:
+            x_train = x_train.drop(features_names[most_important_ind], axis=1)
+            x_test = x_test.drop(features_names[most_important_ind], axis=1)
         features_names = np.delete(features_names, most_important_ind)
         count += 1
         pbar.update(1)
     pbar.close()
-    return important_features, stats
+    if return_all:
+        return np.array(important_features), stats, x_train_cur, y_train, sample_weight_train, x_test_cur, y_test, sample_weight_test
+    else:
+        return important_features, stats
 
 def merge_indices_and_dump(outpath, important_features, stats, df_illumina_sorted, df_bed):
     df_illumina_sites = pd.DataFrame(np.array(important_features), columns=['illumina_id'])
@@ -62,7 +71,7 @@ def parse_args():
                         help='Whether to dump sites of pairs. 0=False,1=SickHealthy,2=HealthyHealthy,3=Both')
     parser.add_argument('--convert_to_blocks', type=int, default=0,
                         help='Whether to convert sites to blocks of pairs. 0=False,1=SickHealthy,2=HealthyHealthy,3=Both')
-    parser.add_argument('--files_exist', type=bool, default=False,
+    parser.add_argument('--files_exist', type=int, default=0,
                         help="Whether binary files exist, if they don't need to build them in RAM")
     parser.add_argument('--n', type=int, default=200,
                         help='Number of sites to dump per pair')
@@ -81,7 +90,8 @@ if __name__ == '__main__':
     args = parse_args()
     if args.create_bins == 1 or args.create_bins == 3:
         create_sick_healthy_pairs_bin(args.outpath, PAIRED_SICK_HEALTHY, verbose=args.verbose)
-    elif args.create_bins == 2 or args.create_bins == 3:
+
+    if args.create_bins == 2 or args.create_bins == 3:
         # create array of paired paths for all pairs of healthy
         a = np.array(PATHS_NORMAL_SUBTYPE)
         i, j = np.triu_indices(len(a), 1)
@@ -107,7 +117,7 @@ if __name__ == '__main__':
             if args.verbose >= 1:
                 tqdm.write("Calculating important sites for data type %s" % type)
             path = "%s/sickHealthy/%s" % (args.outpath, type)
-            if args.files_exist:
+            if args.files_exist == 1 or args.files_exist == 3:
                 # read the binary data
                 x, y, sample_weight, features_names = read_data_from_bins(path)
             else:
@@ -117,6 +127,7 @@ if __name__ == '__main__':
 
             important_features, stats = find_important_features(x, y, sample_weight, features_names, False, args)
 
+            outpath = "%s/sickHealthy/%s/site_predictions_%s.tsv" % (args.outpath, type, type)
 
             merge_indices_and_dump(outpath, important_features, stats, df_illumina_sorted, df_bed)
 
@@ -142,7 +153,7 @@ if __name__ == '__main__':
             if args.verbose >= 1:
                 tqdm.write("Calculating important sites for data types %s and %s" % (type1, type2))
             path = "%s/HealthyHealthy/%s_%s" % (args.outpath, type1, type2)
-            if args.files_exist:
+            if args.files_exist == 2 or args.files_exist == 3:
                 # read the binary data
                 x, y, sample_weight, features_names = read_data_from_bins(path)
             else:

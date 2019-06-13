@@ -163,10 +163,16 @@ def shuffle_data(x, y, sample_weight, tt_split=0.3):
     # shuffle in train and test after the split
     train_idx = np.random.permutation(np.array(train_idx))
     test_idx = np.random.permutation(np.array(test_idx))
-    x_train = x[train_idx]
+    try:
+        x_train = x[train_idx]
+    except KeyError:
+        x_train = x.loc[train_idx]
     y_train = y[train_idx]
     sample_weight_train = sample_weight[train_idx]
-    x_test = x[test_idx]
+    try:
+        x_test = x[test_idx]
+    except KeyError:
+        x_test = x.loc[test_idx]
     y_test = y[test_idx]
     sample_weight_test = sample_weight[test_idx]
     return x_train, y_train, sample_weight_train, x_test, y_test, sample_weight_test

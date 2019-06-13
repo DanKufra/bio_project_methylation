@@ -30,3 +30,15 @@ chr#:locus_start-locus_end
 1. Implemented random forest between sick-healthy and healthy-healthy and used it to output the "most important feature" i.e the root of one of the decision trees/
     a. Achieved high accuracy
 2. Ran SVM on just those features to try and distinguish between sick-healthy and healthy-healthy:
+
+
+
+Possible datesets
+cancerDetector - liver
+chen - kidney
+
+
+
+TODOS 13.06:
+1. Create data folder with betas per cancer type for all datasets combined
+2. Rerun algorithm
