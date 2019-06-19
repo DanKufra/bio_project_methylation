@@ -112,7 +112,7 @@ LABELS_DICT = OrderedDict({1: tuple(('BRCA', True)),
                            55: tuple(('SKCM', False)),
                            56: tuple(('THYM', False))})
 
-PATHS_SICK = ['/cs/cbio/tommy/TCGA/BRCA_Primary_Tumor.tsv.gz',
+PATHS_SICK = ['cd Cl    ',
               '/cs/cbio/tommy/TCGA/LUAD_Primary_Tumor.tsv.gz',
               '/cs/cbio/tommy/TCGA/LUSC_Primary_Tumor.tsv.gz',
               '/cs/cbio/tommy/TCGA/COAD_Primary_Tumor.tsv.gz',

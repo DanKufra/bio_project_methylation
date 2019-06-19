@@ -42,3 +42,22 @@ chen - kidney
 TODOS 13.06:
 1. Create data folder with betas per cancer type for all datasets combined
 2. Rerun algorithm
+
+
+
+
+
+
+
+##########################################################################################3
+BRCA - receptorStatusPrediction
+
+Try this with methylation data?
+http://web.tecnico.ulisboa.pt/susanavinga/TNBC/Lopes_et_al_BMCBioinformatics.html
+
+Article to look at:
+
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3465532/#SD1
+
+
+- Maybe use healthy data from /cs/cbio/josh/meth_array_data/GEO/ as - - - samples?

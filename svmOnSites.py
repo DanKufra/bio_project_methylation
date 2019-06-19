@@ -20,14 +20,14 @@ def get_random_dfs(df_x, df_wgbs, ftr_names, num_sites, num_to_choose_from):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('outpath', type=str,
-                        help='Outpath of our data and sites')
-    parser.add_argument('data_input_path', type=str,
-                        help='Input path of data, expect info jsons,bins')
-    parser.add_argument('site_input_path', type=str,
-                        help='Input path of site predictions')
+    # parser.add_argument('outpath', type=str,
+    #                     help='Outpath of our data and sites')
     parser.add_argument('wgbs_input_path', type=str,
                         help='Input path of wgbs data')
+    parser.add_argument('data_input_path', type=str,
+                        help='Input path of data, expect info jsons,bins', default=None)
+    parser.add_argument('site_input_path', type=str,
+                        help='Input path of site predictions', default=None)
     parser.add_argument('--cancer_type', type=str, default='all',
                         help='cancer type to test on')
     parser.add_argument('--pos_vals', type=str, nargs='+',
@@ -43,6 +43,7 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
+
     choose_random_sites = args.random
     # read the binary data
     print("Reading TCGA data")
@@ -118,6 +119,7 @@ if __name__ == '__main__':
             # get reduced WGBS
             x_WGBS_reduced = wgbs_df_no_nan[important_features].values
 
+        #TODO try linear kernel
         clf = SVC(class_weight='balanced', kernel='poly', degree=3)
         clf.fit(x_train, y_train)
 
