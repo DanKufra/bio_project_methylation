@@ -1,32 +1,55 @@
 from utils import*
 
 DIAG_MAPPING = {'Positive' : 1, 'Negative': -1,
-                'Indeterminate': 0, 'Equivocal': 0, 'Not Available': -2, 'Not Performed': -2, '[Not Evaluated]' : -2}
+                'Indeterminate': 0, 'Equivocal': 0, '[Not Available]': -2, 'Not Performed': -2, '[Not Evaluated]' : -2}
+
+LEVEL_SCORE_MAPPING = {'0' : -1, '1+': -1, '2+': 0, '3+': 1, '[Not Available]': -2, 'Not Performed': -2, '[Not Evaluated]' : -2}
 
 # read BRCA patients prognosis
-df_BRCA_diagnosis = pd.read_csv('/cs/cbio/dank/project/TCGA_Data/BRCA.txt', delimiter='\t')
+df_BRCA_diagnosis = pd.read_csv('/cs/cbio/dank/project/TCGA_Data/BRCA.csv', delimiter='\t')
 df_BRCA_diagnosis.set_index('bcr_patient_barcode', inplace=True)
-# df[['er_status_by_ihc', 'pr_status_by_ihc', 'her2_status_by_ihc', 'her2_fish_status']]
+df_BRCA_diagnosis.drop(['bcr_patient_barcode','CDE_ID:2673794'], inplace=True)
+
 # read BRCA patients matching
 df_id_matching = pd.read_csv('/cs/cbio/dank/project/TCGA_Data/sample_sheet_BRCA.csv', delimiter='\t')
 
 # read methylation data
-df_healthy = read_data_from_tsv('/cs/cbio/tommy/TCGA/BRCA_Solid_Tissue_Normal.tsv.gz')
+# df_healthy = read_data_from_tsv('/cs/cbio/tommy/TCGA/BRCA_Solid_Tissue_Normal.tsv.gz')
 df_sick = read_data_from_tsv('/cs/cbio/tommy/TCGA/BRCA_Primary_Tumor.tsv.gz')
 
 # match to methylation data
-df_joined = df_id_matching.join(pd.concat([df_sick.T, df_healthy.T]), on='Array.Data.File', how='inner')
+# df_joined = df_id_matching.join(pd.concat([df_sick.T, df_healthy.T]), on='Array.Data.File', how='inner')
+df_joined = df_id_matching.join(df_sick.T, on='Array.Data.File', how='inner')
 df_joined.drop(['histological_type', 'Scan.Name', 'Sample.Name', 'tumor_tissue_site', 'cancer_type'], axis=1, inplace=True)
 df_joined.set_index('Patient.Name', inplace=True)
 
 final_df = df_BRCA_diagnosis[['er_status_by_ihc', 'pr_status_by_ihc', 'her2_status_by_ihc', 'her2_fish_status', 'her2_ihc_score']].join(df_joined, how='inner')
 
 # replace string labels with int for ease of parsing
-for k,v in DIAG_MAPPING.items():
-    final_df.loc[final_df['er_status_by_ihc'] == k, 'er_status_by_ihc'] = v
-    final_df.loc[final_df['pr_status_by_ihc'] == k, 'pr_status_by_ihc'] = v
-    final_df.loc[final_df['her2_status_by_ihc'] == k, 'her2_status_by_ihc'] = v
-    final_df.loc[final_df['her2_fish_status'] == k, 'her2_fish_status'] = v
+final_df['er_status_by_ihc'] = final_df['er_status_by_ihc'].map(DIAG_MAPPING).fillna(final_df['er_status_by_ihc'])
+final_df['pr_status_by_ihc'] = final_df['pr_status_by_ihc'].map(DIAG_MAPPING).fillna(final_df['pr_status_by_ihc'])
+final_df['her2_status_by_ihc'] = final_df['her2_status_by_ihc'].map(DIAG_MAPPING).fillna(final_df['her2_status_by_ihc'])
+final_df['her2_fish_status'] = final_df['her2_fish_status'].map(DIAG_MAPPING).fillna(final_df['her2_fish_status'])
+
+final_df['her2_ihc_score'] = final_df['her2_ihc_score'].map(LEVEL_SCORE_MAPPING).fillna(final_df['her2_ihc_score'])
+
+# Give some summary statistics
+
+# How many of each measurement type we have
+
+# Crosstab between her2 ihc status and fish status
+pd.crosstab(final_df['her2_status_by_ihc'], final_df['her2_fish_status'])
+
+# get list of patients where her2 fish status does not match ihc status
+fish_vs_ihc = final_df[((final_df['her2_status_by_ihc'] == 1) & (final_df['her2_fish_status'] == -1)) | ((final_df['her2_status_by_ihc'] == -1) & (final_df['her2_fish_status'] == 1))]
+
+# Crosstab between her2 ihc status and ihc score
+pd.crosstab(final_df['her2_status_by_ihc'], final_df['her2_ihc_score'])
+
+# get list of patients where her2 ihc level does not match ihc status
+ihc_status_vs_ihc_level = final_df[((final_df['her2_status_by_ihc'] == 1) & (final_df['her2_ihc_score'] == -1)) | ((final_df['her2_status_by_ihc'] == -1) & (final_df['her2_ihc_score'] == 1))]
+
+
 
 
 weird_combinations = [[ 1,   -1,   1],
