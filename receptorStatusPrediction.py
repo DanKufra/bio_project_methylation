@@ -5,26 +5,26 @@ DIAG_MAPPING = {'Positive' : 1, 'Negative': -1,
                 'Indeterminate': 0, 'Equivocal': 0, '[Not Available]': -2, 'Not Performed': -2, '[Not Evaluated]' : -2}
 
 LEVEL_SCORE_MAPPING = {'0' : -1, '1+': -1, '2+': 0, '3+': 1, '[Not Available]': -2, 'Not Performed': -2, '[Not Evaluated]' : -2}
-
 # read BRCA patients prognosis
-df_BRCA_diagnosis = pd.read_csv('/cs/cbio/dank/project/TCGA_Data/BRCA.csv', delimiter='\t')
+df_BRCA_diagnosis = pd.read_csv('/cs/cbio/dank/BRCA_TCGA_data/BRCA.tsv', delimiter='\t')
 df_BRCA_diagnosis.set_index('bcr_patient_barcode', inplace=True)
-df_BRCA_diagnosis.drop(['bcr_patient_barcode','CDE_ID:2673794'], inplace=True)
+df_BRCA_diagnosis.drop(['bcr_patient_barcode','CDE_ID:2003301'], inplace=True)
 
 # read BRCA patients matching
-df_id_matching = pd.read_csv('/cs/cbio/dank/project/TCGA_Data/sample_sheet_BRCA.csv', delimiter='\t')
+df_id_matching = pd.read_csv('/cs/cbio/dank/BRCA_TCGA_data/sample_sheet_BRCA.tsv', delimiter='\t')
 
 # read methylation data
 # df_healthy = read_data_from_tsv('/cs/cbio/tommy/TCGA/BRCA_Solid_Tissue_Normal.tsv.gz')
-df_sick = read_data_from_tsv('/cs/cbio/tommy/TCGA/BRCA_Primary_Tumor.tsv.gz')
+df_sick = read_data_from_tsv('/cs/cbio/dank/BRCA_TCGA_data/BRCA_Primary_Tumor.tsv.gz')
 
 
 # match to methylation data
 # df_joined = df_id_matching.join(pd.concat([df_sick.T, df_healthy.T]), on='Array.Data.File', how='inner')
-df_joined = df_id_matching.join(df_sick.T, on='Array.Data.File', how='inner')
+df_joined = df_id_matching.join(df_sick.T, on='Sample ID', how='inner')
 # df_joined = df_id_matching
-df_joined.drop(['histological_type', 'Scan.Name', 'Sample.Name', 'tumor_tissue_site', 'cancer_type'], axis=1, inplace=True)
-df_joined.set_index('Patient.Name', inplace=True)
+
+df_joined.drop(['File ID', 'File Name', 'Data Category', 'Data Type', 'Project ID','Sample ID', 'Sample Type'], axis=1, inplace=True)
+df_joined.set_index('Case ID', inplace=True)
 
 final_df = df_BRCA_diagnosis[['er_status_by_ihc', 'pr_status_by_ihc', 'her2_status_by_ihc', 'her2_fish_status', 'her2_ihc_score']].join(df_joined, how='inner')
 
@@ -90,34 +90,61 @@ Keep the following in test:
 2. Observations where IHC level and IHC status did not match
 """
 
-test_idx =  (df_clinical['neg_pre_fish'] != df_clinical['neg']) |  (df_clinical['pos_pre_fish'] != df_clinical['pos'])
-test_idx =  test_idx | ((df_clinical['her2_ihc'] != df_clinical['her2_ihc_level']) &  (df_clinical['her2_ihc_level'] != -2))
+train_idx =  (df_clinical['neg_pre_fish'] != df_clinical['neg']) |  \
+             (df_clinical['pos_pre_fish'] != df_clinical['pos'])
+train_idx =  train_idx | ((df_clinical['her2_ihc'] != df_clinical['her2_ihc_level']) &
+                          (df_clinical['her2_ihc_level'] != -2) &
+                          ((df_clinical['her2_fish'] == -2) | (df_clinical['her2_fish'] == 0)))
 
 # out of remaning indices pick 0.25*Y.shape[0] - test_idx.sum() examples for test
-test_idx[np.random.choice(np.arange(0, Y.shape[0])[np.logical_not(test_idx)], np.round(0.25*Y.shape[0] - test_idx.sum()).astype(np.int8))] = True
+train_idx[np.random.choice(np.arange(0, Y.shape[0])[np.logical_not(train_idx)], np.round(0.75*Y.shape[0] - train_idx.sum()).astype(np.uint32))] = True
 
 
-shuf_test_idx = np.random.permutation(np.where(test_idx)[0])
-shuf_train_idx = np.random.permutation(np.where(~test_idx)[0])
+shuf_test_idx = np.random.permutation(np.where(~train_idx)[0])
+shuf_train_idx = np.random.permutation(np.where(train_idx)[0])
 Y_test = Y[shuf_test_idx]
-Y_train = Y[~shuf_train_idx]
+Y_train = Y[shuf_train_idx]
 X_test = X[shuf_test_idx]
-X_train = X[~shuf_train_idx]
-import pdb
-pdb.set_trace()
+X_train = X[shuf_train_idx]
 clf = SVC(class_weight='balanced', kernel='linear')
 clf.fit(X_train, Y_train)
 
-pred = clf.predict(X_test)
+pred_test = clf.predict(X_test)
+pred_train = clf.predict(X_train)
+
+rel_cols = ['er_ihc', 'pr_ihc', 'her2_ihc', 'her2_fish', 'her2_ihc_level', 'pos', 'her2_ihc_and_fish']
+patients_changed_by_fish = df_clinical.iloc[np.where((df_clinical['neg_pre_fish'] != df_clinical['neg']) |
+                                                     (df_clinical['pos_pre_fish'] != df_clinical['pos']))][rel_cols]
+
+patients_with_ihc_level_diff = df_clinical.iloc[np.where(((df_clinical['her2_ihc'] != df_clinical['her2_ihc_level']) &
+                                                          (df_clinical['her2_ihc_level'] != -2) &
+                                                          ((df_clinical['her2_fish'] == -2) | (df_clinical['her2_fish'] == 0))))][rel_cols]
+
+patients_wrong_test = df_clinical.iloc[shuf_test_idx[np.where(pred_test != Y_test)]][rel_cols]
+patients_wrong_train = df_clinical.iloc[shuf_train_idx[np.where(pred_train != Y_train)]][rel_cols]
+
+clf = RandomForestClassifier(random_state=666, max_depth=3, n_estimators=10)
+clf = clf.fit(X_train, Y_train)
+pred_rf_test = clf.predict(X_test)
+pred_rf_train = clf.predict(X_train)
+
+patients_wrong_test_rf = df_clinical.iloc[shuf_test_idx[np.where(pred_rf_test != Y_test)]][rel_cols]
+patients_wrong_train_rf = df_clinical.iloc[shuf_train_idx[np.where(pred_rf_train != Y_train)]][rel_cols]
+
+pred_rf_train.index.name = 'patient_name'
+pred_rf_test.index.name = 'patient_name'
+patients_wrong_test_rf.index.name = 'patient_name'
+patients_wrong_train_rf.index.name = 'patient_name'
+patients_changed_by_fish.index.name = 'patient_name'
+patients_wrong_train_rf.join(patients_changed_by_fish, lsuffix='new', how='inner')
+
+import pdb
+pdb.set_trace()
 
 
 
 
-
-
-
-
-
+#['er_ihc', 'pr_ihc', 'her2_ihc', 'her2_fish', 'her2_ihc_level']
 
 # weird_combinations = [[ 1,   -1,   1],
 #                       [-1,    1,   1],
@@ -184,7 +211,6 @@ pred = clf.predict(X_test)
 
 
 # try and fix some weird combinations
-import pdb
-pdb.set_trace()
+
 
 
