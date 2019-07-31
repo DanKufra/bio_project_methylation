@@ -260,6 +260,10 @@ pred_train_her2 = clf_her2.predict(X_train)
 
 print("test ACC er_ihc: %f" %(np.sum(pred_test_her2 == Y_test_her2).astype(np.float32)/ Y_test_her2.shape[0]))
 
+patients_wrong_test_her2 = df_clinical.iloc[shuf_test_idx[np.where(pred_test_her2 != Y_test_her2)]][rel_cols]
+patients_wrong_train_her2 = df_clinical.iloc[shuf_train_idx[np.where(pred_train_her2 != Y_train_her2)]][rel_cols]
+
+
 import pdb
 pdb.set_trace()
 

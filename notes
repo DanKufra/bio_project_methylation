@@ -63,3 +63,10 @@ https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3465532/#SD1
 - Maybe use healthy data from /cs/cbio/josh/meth_array_data/GEO/ as - - - samples?
 
 http://www.cs.huji.ac.il/~tommy/TCGA/
+
+
+Notes so far:
+1. lots more "pr"-"er" mismatches than expected.
+    a. Majority of misclassifications in "pr" are in these mismatches
+2. Still generally high accuracy in each type on its own
+3. In triple negative prediction half of bad train predictions have labels changed by FISH
