@@ -70,3 +70,11 @@ Notes so far:
     a. Majority of misclassifications in "pr" are in these mismatches
 2. Still generally high accuracy in each type on its own
 3. In triple negative prediction half of bad train predictions have labels changed by FISH
+
+
+
+TODO:
+Run clustering and find patters in methylation between subclasses (clustermap from seaborn)
+Create multiclass
+Compare multiclass to combination of binary
+Visualize confusion matrix for multiclass
