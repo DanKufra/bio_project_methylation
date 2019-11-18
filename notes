@@ -71,10 +71,11 @@ Notes so far:
 2. Still generally high accuracy in each type on its own
 3. In triple negative prediction half of bad train predictions have labels changed by FISH
 
-
+Got subclasses for BRCA from here:
+https://pubs.rsna.org/doi/10.1148/radiol.2018171118
 
 TODO:
-Run clustering and find patters in methylation between subclasses (clustermap from seaborn)
+Run clustering and find patterns in methylation between subclasses (clustermap from seaborn)
 Create multiclass
 Compare multiclass to combination of binary
 Visualize confusion matrix for multiclass

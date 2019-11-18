@@ -1,6 +1,7 @@
 from utils import*
 from sklearn.svm import SVC
-
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
 DIAG_MAPPING = {'Positive' : 1, 'Negative': -1,
                 'Indeterminate': 0, 'Equivocal': 0, '[Not Available]': -2, 'Not Performed': -2, '[Not Evaluated]' : -2}
 
@@ -11,21 +12,75 @@ REL_COLS = ['er_ihc', 'pr_ihc', 'her2_ihc', 'her2_fish', 'her2_ihc_level', 'pos'
 # class encoding er,pr,her2
 CLASSES = {'111' : 7, '110' : 6, '101' : 5, '100' : 4,
            '011' : 3, '010' : 2, '001' : 1, '000' : 0}
+RECEPTOR_MULTICLASS_NAMES = ['Triple Negative', 'er-,pr-,her2+', 'er-,pr+,her2-',
+                             'er-,pr+,her2+','er+,pr-,her2-', 'er+,pr-,her2+',
+                             'er+,pr+,her2-', 'er+,pr+,her2+']
+
+RECEPTOR_MULTICLASS_NAMES = ['- - -', '- - +', '- + -',
+                             '- + +','+ - -', '+ - +',
+                             '+ + -', '+ + +']
 
 
-def print_stats(clsf, tt, receptor, preds, lbls):
-    # get some basic stats
-    pos_num = np.sum(lbls)
-    neg_num = lbls.shape[0] - pos_num
-    # get masks
-    correct_ind_mask = preds == lbls
-    # calc TPR
-    tpr = np.sum(correct_ind_mask & (lbls == 1)) / pos_num
-    # calc TNR
-    tnr = np.sum(correct_ind_mask & (lbls == 0)) / neg_num
-    # calc ACC
-    acc = np.sum(correct_ind_mask) / float(lbls.shape[0])
-    print("%s %s %s: ACC: %f, TPR: %f, TNR: %f, numPos: %f, numNeg: %f" %(clsf, tt, receptor, acc, tpr, tnr, pos_num, neg_num))
+CLASSES_REDUCED = {'111' : 1, '110' : 0, '101' : 1, '100' : 0,
+           '011' : 1, '010' : 0, '001' : 2, '000' : 3}
+RECEPTOR_MULTICLASS_NAMES_REDUCED = ['Luminal A', 'Luminal B', 'HER2-overexpression', 'Triple Negative']
+
+
+def print_stats(clsf, tt, receptor, preds, lbls, multiclass=False, cmap=plt.cm.Blues,
+                classes=RECEPTOR_MULTICLASS_NAMES, normalize=True):
+    if multiclass:
+        # Compute confusion matrix
+        cm = confusion_matrix(lbls, preds)
+        # Only use the labels that appear in the data
+        # classes = classes[unique_labels(lbls, preds)]
+        if normalize:
+            cm = np.around((cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]), decimals=2)
+            title = "Normalized confusion matrix: %s %s %s"  %(clsf, tt, receptor)
+        else:
+            title = "Confusion matrix: %s %s %s" % (clsf, tt, receptor)
+        print(title)
+        print(cm)
+
+        fig, ax = plt.subplots()
+        im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
+        ax.figure.colorbar(im, ax=ax)
+        # We want to show all ticks...
+        ax.set(xticks=np.arange(cm.shape[1]),
+               yticks=np.arange(cm.shape[0]),
+               # ... and label them with the respective list entries
+               xticklabels=classes, yticklabels=classes,
+               title=title,
+               ylabel='True label',
+               xlabel='Predicted label')
+
+        # Rotate the tick labels and set their alignment.
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+                 rotation_mode="anchor")
+
+        # Loop over data dimensions and create text annotations.
+        fmt = '.2f' if normalize else 'd'
+        thresh = cm.max() / 2.
+        for i in range(cm.shape[0]):
+            for j in range(cm.shape[1]):
+                ax.text(j, i, format(cm[i, j], fmt),
+                        ha="center", va="center",
+                        color="white" if cm[i, j] > thresh else "black")
+        fig.tight_layout()
+        plt.show()
+
+    else:
+        # get some basic stats
+        pos_num = np.sum(lbls)
+        neg_num = lbls.shape[0] - pos_num
+        # get masks
+        correct_ind_mask = preds == lbls
+        # calc TPR
+        tpr = np.sum(correct_ind_mask & (lbls == 1)) / pos_num
+        # calc TNR
+        tnr = np.sum(correct_ind_mask & (lbls == 0)) / neg_num
+        # calc ACC
+        acc = np.sum(correct_ind_mask) / float(lbls.shape[0])
+        print("%s %s %s: ACC: %f, TPR: %f, TNR: %f, numPos: %f, numNeg: %f" %(clsf, tt, receptor, acc, tpr, tnr, pos_num, neg_num))
 
 
 def readData():
@@ -128,27 +183,27 @@ def fixMismatches(df):
     return df_clinical
 
 
-def classify(receptor, X_test, X_train, Y_test, Y_train):
+def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class_names=RECEPTOR_MULTICLASS_NAMES):
     print("Running SVM on data - predict %s :" % receptor)
-    clf = SVC(class_weight='balanced', kernel='linear')
-    clf.fit(X_train, Y_train)
+    # clf = SVC(class_weight='balanced', kernel='linear')
+    # clf.fit(X_train, Y_train)
 
-    pred_test = clf.predict(X_test)
-    pred_train = clf.predict(X_train)
+    # pred_test = clf.predict(X_test)
+    # pred_train = clf.predict(X_train)
 
-    print_stats('SVM', 'train', 'triple_negative', pred_train, Y_train)
-    print_stats('SVM', 'test', 'triple_negative', pred_test, Y_test)
+    # print_stats('SVM', 'train', receptor, pred_train, Y_train, multiclass, classes=class_names)
+    # print_stats('SVM', 'test', receptor, pred_test, Y_test, multiclass, classes=class_names)
 
-    print("Running random forest  - predict triple negative :")
-    clf_rf = RandomForestClassifier(random_state=666, max_depth=3, n_estimators=10,
-                                                    class_weight='balanced')
+    print("Running random forest  - predict %s :" % receptor)
+    clf_rf = RandomForestClassifier(max_depth=3, n_estimators=100, class_weight='balanced')
     clf_rf = clf_rf.fit(X_train, Y_train)
     pred_test_rf = clf_rf.predict(X_test)
     pred_train_rf = clf_rf.predict(X_train)
 
-    print_stats('Random Forest', 'train', receptor, pred_train_rf, Y_train)
-    print_stats('Random Forest', 'test', receptor, pred_test_rf, Y_test)
-    return pred_test, pred_train, pred_train_rf, pred_test_rf
+    print_stats('Random Forest', 'train', receptor, pred_train_rf, Y_train, multiclass, classes=class_names)
+    print_stats('Random Forest', 'test', receptor, pred_test_rf, Y_test, multiclass, classes=class_names)
+    # return pred_test, pred_train, pred_train_rf, pred_test_rf
+    return pred_train_rf, pred_test_rf
 
 
 def shuffle_idx(X, Y, train_idx):
@@ -272,15 +327,43 @@ def classifyReceptor(df, receptor, print_wrong=False):
         print(patients_wrong_test_rf.join(er_pr_mismatch, lsuffix='_new', how='inner'))
 
 
+def df_to_class_labels(df, classes=CLASSES):
+    y = np.zeros(df.shape[0])
+
+    y[(df['er_ihc'] == 1) & (df['pr_ihc'] == 1) &  (df['her2_ihc_and_fish'] == 1)] = classes['111']
+    y[(df['er_ihc'] == 1) & (df['pr_ihc'] == 1) & ~(df['her2_ihc_and_fish'] == 1)] = classes['110']
+    y[(df['er_ihc'] == 1) & ~(df['pr_ihc'] == 1) & (df['her2_ihc_and_fish'] == 1)] = classes['101']
+    y[(df['er_ihc'] == 1) & ~(df['pr_ihc'] == 1) & ~(df['her2_ihc_and_fish'] == 1)] = classes['100']
+    y[~(df['er_ihc'] == 1) & (df['pr_ihc'] == 1) & (df['her2_ihc_and_fish'] == 1)] = classes['011']
+    y[~(df['er_ihc'] == 1) & (df['pr_ihc'] == 1) & ~(df['her2_ihc_and_fish'] == 1)] = classes['010']
+    y[~(df['er_ihc'] == 1) & ~(df['pr_ihc'] == 1) & (df['her2_ihc_and_fish'] == 1)] = classes['001']
+    y[~(df['er_ihc'] == 1) & ~(df['pr_ihc'] == 1) & ~(df['her2_ihc_and_fish'] == 1)] = classes['000']
+    return y
+
+
+def classifyMulticlass(df):
+
+    Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
+    X = df[df.columns[['cg' in col for col in df.columns]]].values
+
+    train_idx = np.zeros(df.shape[0], dtype=np.bool)
+    train_idx[np.random.choice(np.arange(df.shape[0]), int(df.shape[0] * 0.8))] = True
+
+    X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, train_idx)
+
+    pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf = classify('multiclass', X_test, X_train, Y_test, Y_train,
+                                                                          multiclass=True, class_names=RECEPTOR_MULTICLASS_NAMES_REDUCED)
+
+
 if __name__ == '__main__':
     final_df = readData()
     getMismatches(final_df)
     df_clinical = fixMismatches(final_df)
-    classifyTripleNegative(df_clinical)
-    classifyReceptor(df_clinical, 'er_ihc')
-    classifyReceptor(df_clinical, 'pr_ihc')
-    classifyReceptor(df_clinical, 'her2')
-
+    # classifyTripleNegative(df_clinical)
+    # classifyReceptor(df_clinical, 'er_ihc')
+    # classifyReceptor(df_clinical, 'pr_ihc')
+    # classifyReceptor(df_clinical, 'her2_ihc_and_fish')
+    classifyMulticlass(df_clinical)
 
 
 
