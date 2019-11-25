@@ -2,6 +2,56 @@ from utils import*
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
+import torch
+
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+
+
+class Net(nn.Module):
+    def __init__(self, transform_dim=100, hidden_dim=128, num_layers=5):
+        super(Net, self).__init__()
+        self.layers = nn.ModuleList()
+        for i in range(num_layers):
+            if i == 0:
+                self.layers.append(nn.Linear(transform_dim, hidden_dim))
+            elif i == num_layers-1:
+                self.layers.append(nn.Linear(hidden_dim, 1))
+            else:
+                self.layers.append(nn.Linear(hidden_dim, hidden_dim))
+
+    def forward(self, x):
+        for i, layer in enumerate(self.layers):
+            if i < len(self.layers) - 1:
+                x = F.relu(layer(x))
+            else:
+                x = layer(x)
+        return x
+
+
+class CenterTripletLoss(torch.nn.Module):
+
+    def __init__(self, margin=1):
+        super(CenterTripletLoss, self).__init__()
+        self.margin=1
+
+    def forward(self, x, centers, transform_inds):
+        loss = torch.zeros(1)
+        centers = torch.tensor(centers).reshape(-1, 1).float()
+        for i, sample in enumerate(x):
+            pull = F.mse_loss(sample, centers[transform_inds[i]]) + self.margin
+            push = np.inf
+            for ind, center in enumerate(centers):
+                if ind != transform_inds[i]:
+                    curr_push = F.mse_loss(sample, center)
+                    if curr_push < push:
+                        push = curr_push
+            loss += F.relu(pull - push, 0)
+        loss /= x.shape[0]
+        return loss
+
+
 DIAG_MAPPING = {'Positive' : 1, 'Negative': -1,
                 'Indeterminate': 0, 'Equivocal': 0, '[Not Available]': -2, 'Not Performed': -2, '[Not Evaluated]' : -2}
 
@@ -185,14 +235,14 @@ def fixMismatches(df):
 
 def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class_names=RECEPTOR_MULTICLASS_NAMES):
     print("Running SVM on data - predict %s :" % receptor)
-    # clf = SVC(class_weight='balanced', kernel='linear')
-    # clf.fit(X_train, Y_train)
+    clf = SVC(class_weight='balanced', kernel='linear')
+    clf.fit(X_train, Y_train)
 
-    # pred_test = clf.predict(X_test)
-    # pred_train = clf.predict(X_train)
+    pred_test = clf.predict(X_test)
+    pred_train = clf.predict(X_train)
 
-    # print_stats('SVM', 'train', receptor, pred_train, Y_train, multiclass, classes=class_names)
-    # print_stats('SVM', 'test', receptor, pred_test, Y_test, multiclass, classes=class_names)
+    print_stats('SVM', 'train', receptor, pred_train, Y_train, multiclass, classes=class_names)
+    print_stats('SVM', 'test', receptor, pred_test, Y_test, multiclass, classes=class_names)
 
     print("Running random forest  - predict %s :" % receptor)
     clf_rf = RandomForestClassifier(max_depth=3, n_estimators=100, class_weight='balanced')
@@ -202,8 +252,8 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
 
     print_stats('Random Forest', 'train', receptor, pred_train_rf, Y_train, multiclass, classes=class_names)
     print_stats('Random Forest', 'test', receptor, pred_test_rf, Y_test, multiclass, classes=class_names)
-    # return pred_test, pred_train, pred_train_rf, pred_test_rf
-    return pred_train_rf, pred_test_rf
+    return pred_test, pred_train, pred_train_rf, pred_test_rf
+    # return pred_train_rf, pred_test_rf
 
 
 def shuffle_idx(X, Y, train_idx):
@@ -354,6 +404,83 @@ def classifyMulticlass(df):
     pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf = classify('multiclass', X_test, X_train, Y_test, Y_train,
                                                                           multiclass=True, class_names=RECEPTOR_MULTICLASS_NAMES_REDUCED)
 
+def GOAD(df, num_transfomations=32, transform_dim=100, num_epochs=5, batch_size=8):
+    # set real class as Triple Negative and anomalies class as others
+    triple_neg_df = df[df.neg == 1]
+    anomaly_df = df[df.pos == 1]
+    X_real = triple_neg_df[triple_neg_df.columns[['cg' in col for col in triple_neg_df.columns]]].values
+    X_anomaly = anomaly_df[anomaly_df.columns[['cg' in col for col in anomaly_df.columns]]].values
+
+    # Create test set that includes part of Triple Negative and part of anomalies
+    train_idx = np.zeros(triple_neg_df.shape[0], dtype=np.bool)
+    train_idx[np.random.choice(np.arange(triple_neg_df.shape[0]), int(triple_neg_df.shape[0] * 0.8))] = True
+    X_real_train = X_real[train_idx]
+    X_real_test = X_real[~train_idx]
+
+    # train_idx = np.zeros(anomaly_df.shape[0], dtype=np.bool)
+    # train_idx[np.random.choice(np.arange(anomaly_df.shape[0]), int(anomaly_df.shape[0] * 0.8))] = True
+    # X_anomaly_train = X_anomaly[train_idx]
+    # X_anomaly_test = X_anomaly[~train_idx]
+
+    # sample random transformations
+    random_transformations = np.random.randn(num_transfomations,transform_dim,  X_real.shape[1])
+    random_transformations_bias = np.random.randn(num_transfomations, transform_dim ,1 )
+
+    X_real_train_transformed = np.zeros((num_transfomations, X_real_train.shape[0], transform_dim))
+    # For each sample in real class calculate the transformations
+    for sample in np.arange(X_real_train.shape[0]):
+        for transformation in np.arange(num_transfomations):
+            X_real_train_transformed[transformation, sample] = (np.matmul(random_transformations[transformation], X_real_train[sample].reshape((-1, 1))) + random_transformations_bias[transformation]).ravel()
+    # Learn classifier + centers
+    net = Net(hidden_dim=128, transform_dim=transform_dim, num_layers=5).float()
+    criterion = CenterTripletLoss(margin=1.0)
+    optimizer = optim.SGD(net.parameters(), lr=0.00001, momentum=0.9)
+
+    epoch_example_num = X_real_train_transformed.shape[0] * X_real_train_transformed.shape[1]
+    epoch_batches_num = int(epoch_example_num / batch_size)
+    for epoch in range(num_epochs):
+        for batch in range(epoch_batches_num):
+            optimizer.zero_grad()
+            # pick random batch
+            transform_inds = np.random.randint(0, X_real_train_transformed.shape[0], batch_size)
+            sample_inds = np.random.randint(0, X_real_train_transformed.shape[1], batch_size)
+            x = torch.from_numpy(X_real_train_transformed[transform_inds, sample_inds]).float()
+
+            # import pdb
+            # pdb.set_trace()
+            centers = calc_centers(net, X_real_train_transformed)
+            out = net.forward(x=x)
+            loss = criterion(out, centers=centers, transform_inds=transform_inds)
+            print(loss)
+            loss.backward()
+            optimizer.step()
+
+    # Take test set and apply transformations
+    X_anomaly_transformed = np.zeros((num_transfomations, X_anomaly.shape[0], transform_dim))
+    # For each sample in real class calculate the transformations
+    for sample in np.arange(X_anomaly.shape[0]):
+        for transformation in np.arange(num_transfomations):
+            X_anomaly_transformed[transformation, sample] = np.matmul(random_transformations[transformation], X_anomaly[sample]) + random_transformations_bias[transformation]
+
+    # Predict likelihood of each example
+    scores = np.zeros((X_anomaly_transformed.shape[0], X_anomaly_transformed.shape[1]))
+    for sample in np.arange(X_anomaly.shape[0]):
+        for transform in np.arange(num_transfomations):
+            scores[transform, sample] = net.forward(torch.from_numpy(X_anomaly_transformed[transform, sample]).float())
+
+    # Create score for example
+
+    # Print accuracy
+
+def calc_centers(net, X):
+    centers = np.zeros(X.shape[0])
+    for transform in range(X.shape[0]):
+        for sample in range(X.shape[1]):
+            with torch.no_grad():
+                centers[transform] += net.forward(torch.from_numpy(X[transform, sample]).float())
+        centers[transform] /= X.shape[1]
+    return centers
+
 
 if __name__ == '__main__':
     final_df = readData()
@@ -363,7 +490,6 @@ if __name__ == '__main__':
     # classifyReceptor(df_clinical, 'er_ihc')
     # classifyReceptor(df_clinical, 'pr_ihc')
     # classifyReceptor(df_clinical, 'her2_ihc_and_fish')
-    classifyMulticlass(df_clinical)
-
-
+    # classifyMulticlass(df_clinical)
+    GOAD(df_clinical)
 
