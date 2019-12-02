@@ -32,23 +32,40 @@ class Net(nn.Module):
 
 class CenterTripletLoss(torch.nn.Module):
 
-    def __init__(self, margin=1):
+    def __init__(self, num_classes, margin=1):
         super(CenterTripletLoss, self).__init__()
         self.margin=1
+        self.num_classes = num_classes
+        self.centers = nn.Parameter(torch.randn(self.num_classes, 1))
 
     def forward(self, x, centers, transform_inds):
         loss = torch.zeros(1)
-        centers = torch.tensor(centers).reshape(-1, 1).float()
-        for i, sample in enumerate(x):
-            pull = F.mse_loss(sample, centers[transform_inds[i]]) + self.margin
-            push = np.inf
-            for ind, center in enumerate(centers):
-                if ind != transform_inds[i]:
-                    curr_push = F.mse_loss(sample, center)
-                    if curr_push < push:
-                        push = curr_push
-            loss += F.relu(pull - push, 0)
+        # centers = torch.tensor(centers).reshape(-1, 1).float()
+        centers = self.centers
+        import pdb
+        pdb.set_trace()
+        # calc dist matrix (Distance from each sample and each center)
+        dist_mat = torch.sqrt(torch.pow((x - centers.t()), 2))
+        # calc same center mask
+        same_center_mask = torch.FloatTensor(x.shape[0], self.num_classes)
+        same_center_mask.zero_()
+        transform_inds = np.expand_dims(transform_inds, 1)
+        same_center_mask = same_center_mask.scatter_(1, torch.tensor(transform_inds).type(torch.LongTensor), 1)
+
+        pull = torch.sum(dist_mat*same_center_mask, dim=1)
+        # push = torch.min(dist_mat + 1000*same_center_mask, dim=1)[0]
+        push = torch.min(dist_mat[(1 - same_center_mask).type(torch.bool)].reshape(x.shape[0], -1), dim=1)[0]
+        # for i, sample in enumerate(x):
+        #     pull = F.mse_loss(sample, centers[transform_inds[i]]) + self.margin
+        #     push = np.inf
+        #     for ind, center in enumerate(centers):
+        #         if ind != transform_inds[i]:
+        #             curr_push = F.mse_loss(sample, center)
+        #             if curr_push < push:
+        #                 push = curr_push
+        loss += torch.sum(F.relu(pull - push))
         loss /= x.shape[0]
+        print(centers)
         return loss
 
 
@@ -404,12 +421,17 @@ def classifyMulticlass(df):
     pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf = classify('multiclass', X_test, X_train, Y_test, Y_train,
                                                                           multiclass=True, class_names=RECEPTOR_MULTICLASS_NAMES_REDUCED)
 
-def GOAD(df, num_transfomations=32, transform_dim=100, num_epochs=5, batch_size=8):
+def GOAD(df, num_transfomations=32, transform_dim=100, num_epochs=10, batch_size=8,
+         hidden_dim=128, num_layers=5):
+    # import pdb
+    # pdb.set_trace()
     # set real class as Triple Negative and anomalies class as others
     triple_neg_df = df[df.neg == 1]
     anomaly_df = df[df.pos == 1]
-    X_real = triple_neg_df[triple_neg_df.columns[['cg' in col for col in triple_neg_df.columns]]].values
-    X_anomaly = anomaly_df[anomaly_df.columns[['cg' in col for col in anomaly_df.columns]]].values
+    num_sites = 100000
+    random_sites = np.sort(np.random.choice(triple_neg_df[triple_neg_df.columns[['cg' in col for col in triple_neg_df.columns]]].values.shape[1], num_sites, replace=False))
+    X_real = triple_neg_df[triple_neg_df.columns[['cg' in col for col in triple_neg_df.columns]]].values[:, random_sites].astype(np.float32) / 1000.0
+    X_anomaly = anomaly_df[anomaly_df.columns[['cg' in col for col in anomaly_df.columns]]].values[:, random_sites].astype(np.float32) / 1000.0
 
     # Create test set that includes part of Triple Negative and part of anomalies
     train_idx = np.zeros(triple_neg_df.shape[0], dtype=np.bool)
@@ -417,61 +439,98 @@ def GOAD(df, num_transfomations=32, transform_dim=100, num_epochs=5, batch_size=
     X_real_train = X_real[train_idx]
     X_real_test = X_real[~train_idx]
 
-    # train_idx = np.zeros(anomaly_df.shape[0], dtype=np.bool)
-    # train_idx[np.random.choice(np.arange(anomaly_df.shape[0]), int(anomaly_df.shape[0] * 0.8))] = True
-    # X_anomaly_train = X_anomaly[train_idx]
-    # X_anomaly_test = X_anomaly[~train_idx]
-
     # sample random transformations
     random_transformations = np.random.randn(num_transfomations,transform_dim,  X_real.shape[1])
     random_transformations_bias = np.random.randn(num_transfomations, transform_dim ,1 )
 
+
     X_real_train_transformed = np.zeros((num_transfomations, X_real_train.shape[0], transform_dim))
+    print("Starting transformations")
     # For each sample in real class calculate the transformations
     for sample in np.arange(X_real_train.shape[0]):
         for transformation in np.arange(num_transfomations):
             X_real_train_transformed[transformation, sample] = (np.matmul(random_transformations[transformation], X_real_train[sample].reshape((-1, 1))) + random_transformations_bias[transformation]).ravel()
     # Learn classifier + centers
-    net = Net(hidden_dim=128, transform_dim=transform_dim, num_layers=5).float()
-    criterion = CenterTripletLoss(margin=1.0)
-    optimizer = optim.SGD(net.parameters(), lr=0.00001, momentum=0.9)
+    net = Net(hidden_dim=hidden_dim, transform_dim=transform_dim, num_layers=num_layers).float()
+    criterion = CenterTripletLoss(num_classes=num_transfomations, margin=1.0)
+    optimizer = optim.Adam(list(net.parameters()) + list(criterion.parameters()), lr=0.0001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.9)
 
     epoch_example_num = X_real_train_transformed.shape[0] * X_real_train_transformed.shape[1]
     epoch_batches_num = int(epoch_example_num / batch_size)
+    print_train = epoch_batches_num / 4
+    print_loss = 0
+    print("Starting training, epoch num %d, batches_per_epoch %d" % (num_epochs, epoch_batches_num))
     for epoch in range(num_epochs):
         for batch in range(epoch_batches_num):
+            if batch % print_train == 0 or (batch == epoch_batches_num - 1):
+                print("Epoch num %d batch num %d loss %f" %(epoch, batch, print_loss/print_train))
+                print_loss = 0
             optimizer.zero_grad()
             # pick random batch
             transform_inds = np.random.randint(0, X_real_train_transformed.shape[0], batch_size)
             sample_inds = np.random.randint(0, X_real_train_transformed.shape[1], batch_size)
             x = torch.from_numpy(X_real_train_transformed[transform_inds, sample_inds]).float()
-
-            # import pdb
-            # pdb.set_trace()
+            # calculate centers
             centers = calc_centers(net, X_real_train_transformed)
+            # run neural network and calculate center triplet loss
             out = net.forward(x=x)
             loss = criterion(out, centers=centers, transform_inds=transform_inds)
-            print(loss)
             loss.backward()
             optimizer.step()
+            print_loss += loss.item()
 
-    # Take test set and apply transformations
+    # recalculate centers one last time
+    centers = calc_centers(net, X_real_train_transformed)
+
+    # Take anomalyt set and apply transformations
     X_anomaly_transformed = np.zeros((num_transfomations, X_anomaly.shape[0], transform_dim))
     # For each sample in real class calculate the transformations
     for sample in np.arange(X_anomaly.shape[0]):
         for transformation in np.arange(num_transfomations):
-            X_anomaly_transformed[transformation, sample] = np.matmul(random_transformations[transformation], X_anomaly[sample]) + random_transformations_bias[transformation]
+            X_anomaly_transformed[transformation, sample] = (np.matmul(random_transformations[transformation], X_anomaly[sample].reshape((-1, 1))) + random_transformations_bias[transformation]).ravel()
 
     # Predict likelihood of each example
-    scores = np.zeros((X_anomaly_transformed.shape[0], X_anomaly_transformed.shape[1]))
+    net_scores_anomaly = np.zeros((X_anomaly_transformed.shape[0], X_anomaly_transformed.shape[1]))
     for sample in np.arange(X_anomaly.shape[0]):
         for transform in np.arange(num_transfomations):
-            scores[transform, sample] = net.forward(torch.from_numpy(X_anomaly_transformed[transform, sample]).float())
+            net_scores_anomaly[transform, sample] = net.forward(torch.from_numpy(X_anomaly_transformed[transform, sample]).float())
 
     # Create score for example
+    import pdb
+    pdb.set_trace()
+    likelihood_anomaly = calc_likelihood(scores=net_scores_anomaly, centers=centers)
+    score_anomaly = np.sum(-1*np.log(likelihood_anomaly), axis=0)
 
-    # Print accuracy
+    # Take test set and apply transformations
+    X_real_test_transformed = np.zeros((num_transfomations, X_real_test.shape[0], transform_dim))
+    # For each sample in real class calculate the transformations
+    for sample in np.arange(X_real_test.shape[0]):
+        for transformation in np.arange(num_transfomations):
+            X_real_test_transformed[transformation, sample] = (np.matmul(random_transformations[transformation], X_real_test[sample].reshape((-1, 1))) + random_transformations_bias[transformation]).ravel()
 
+    import pdb
+    pdb.set_trace()
+    # Predict likelihood of each example
+    net_scores_real_test = np.zeros((X_real_test_transformed.shape[0], X_real_test_transformed.shape[1]))
+    for sample in np.arange(X_real_test.shape[0]):
+        for transform in np.arange(num_transfomations):
+            net_scores_real_test[transform, sample] = net.forward(torch.from_numpy(X_real_test_transformed[transform, sample]).float())
+    # Create score for examples
+    import pdb
+    pdb.set_trace()
+    likelihood_real_test = calc_likelihood(scores=net_scores_real_test, centers=centers)
+    score_real_test = np.sum(-1*np.log(likelihood_real_test), axis=0)
+
+    print("Here")
+
+def calc_likelihood(scores, centers):
+    likelihood = np.zeros_like(scores)
+    for transform_idx in np.arange(scores.shape[0]):
+        for sample_idx in np.arange(scores.shape[1]):
+            numerator = np.exp(-1*np.sqrt((scores[transform_idx, sample_idx] - centers[transform_idx])**2))
+            denominator = np.sum(np.exp(-1*np.sqrt((scores[transform_idx, sample_idx] - centers)**2)))
+            likelihood[transform_idx, sample_idx] = numerator / denominator
+    return likelihood
 def calc_centers(net, X):
     centers = np.zeros(X.shape[0])
     for transform in range(X.shape[0]):
