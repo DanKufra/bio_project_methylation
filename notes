@@ -78,4 +78,3 @@ TODO:
 Run clustering and find patterns in methylation between subclasses (clustermap from seaborn)
 Create multiclass
 Compare multiclass to combination of binary
-Visualize confusion matrix for multiclass
