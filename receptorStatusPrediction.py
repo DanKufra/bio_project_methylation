@@ -32,28 +32,29 @@ class Net(nn.Module):
 
 
 class ConvNet(nn.Module):
-    def __init__(self, num_conv_layers=5, num_fully_connected_layers=2, fully_connected_input=128, hidden_dim=128):
+    def __init__(self, num_conv_layers, fully_connected_input_size, num_fully_connected_layers, hidden_dim,
+                 num_filters=32, kernel_size=3):
         super(ConvNet, self).__init__()
         self.layers = nn.ModuleList()
         for i in range(num_conv_layers):
             if i == 0:
-                self.layers.append(nn.Conv1d(in_channels=1, out_channels=num_filters,
-                                             kernel_size=kernel_size, padding=(kernel_size // 2)))
+                self.layers.append(nn.Conv1d(in_channels=1, out_channels=int(num_filters),
+                                             kernel_size=int(kernel_size), padding=(int(kernel_size) // 2)))
                 self.layers.append(nn.MaxPool1d(2))
             elif i == num_conv_layers - 1:
-                self.layers.append(nn.Conv1d(in_channels=num_filters, out_channels=1,
-                                             kernel_size=kernel_size, padding=(kernel_size // 2)))
+                self.layers.append(nn.Conv1d(in_channels=int(num_filters), out_channels=1,
+                                             kernel_size=int(kernel_size), padding=(int(kernel_size) // 2)))
             else:
-                self.layers.append(nn.Conv1d(in_channels=num_filters, out_channels=num_filters,
-                                             kernel_size=kernel_size, padding=(kernel_size // 2)))
+                self.layers.append(nn.Conv1d(in_channels=int(num_filters), out_channels=int(num_filters),
+                                             kernel_size=int(kernel_size), padding=(int(kernel_size) // 2)))
                 self.layers.append(nn.MaxPool1d(2))
-        # for i in range(num_fully_connected_layers):
-        #     if i == 0:
-        #         self.layers.append(nn.Linear(transform_dim, hidden_dim))
-        #     elif i == num_fully_connected_layers-1:
-        #         self.layers.append(nn.Linear(hidden_dim, 1))
-        #     else:
-        #         self.layers.append(nn.Linear(hidden_dim, hidden_dim))
+        for i in range(num_fully_connected_layers):
+            if i == 0:
+                self.layers.append(nn.Linear(int(fully_connected_input_size), int(hidden_dim)))
+            elif i == num_fully_connected_layers-1:
+                self.layers.append(nn.Linear(int(hidden_dim), 1))
+            else:
+                self.layers.append(nn.Linear(int(hidden_dim), int(hidden_dim)))
 
     def forward(self, x):
         import pdb
@@ -491,6 +492,7 @@ def conv_transform_samples_array(X_array, num_transformations, num_downsample=8,
         temp_net = RandomConvNet(int(num_downsample), num_filters=int(num_filters), kernel_size=int(kernel_size))
         temp_input = torch.from_numpy(np.reshape(X_array[0][0], (1, 1, -1))).float()
         temp_x_for_size = temp_net.forward(temp_input)
+        print("Size after random conv transforms: %d" %temp_x_for_size.shape[2])
         X_transformed_array = []
         for X in X_array:
             X_transformed_array.append(np.zeros((num_transformations, X.shape[0], temp_x_for_size.shape[2])))
@@ -546,7 +548,8 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
               lr=0.0001, pull_lambda=1, push_lambda=1, use_conv=False):
     # Learn classifier + centers
     if use_conv:
-        net = ConvNet().float()
+        net = ConvNet(num_conv_layers=4, num_fully_connected_layers=2,
+                      fully_connected_input=np.floor(X.shape[2] / 2**4), hidden_dim=128).float()
     else:
         net = Net(hidden_dim=hidden_dim, transform_dim=transform_dim, num_layers=num_layers).float()
 
@@ -594,7 +597,7 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
 
 
 def GOAD(df, use_conv=False, num_transformations=4, transform_dim=5000, num_epochs=20,
-         batch_size=32, hidden_dim=512, num_layers=10, num_sites=350000, seed=None):
+         batch_size=32, hidden_dim=512, num_layers=10, num_sites=-1, seed=None):
     if seed:
         np.random.seed(seed)
     # class_Y = df_to_class_labels(df, classes=CLASSES)
@@ -623,7 +626,7 @@ def GOAD(df, use_conv=False, num_transformations=4, transform_dim=5000, num_epoc
     X_real_train = X_real[train_idx]
     X_real_test = X_real[~train_idx]
 
-    print("Amount Train: %d, Amount Test: %d, Amount Anomaly: %d" % (len(X_real_train), len(X_real_test), len(X_anomaly)))
+    print("Amount Train: %d, Amount Test: %d, Amount Anomaly: %d, Number of sites: %d" % (len(X_real_train), len(X_real_test), len(X_anomaly), len(random_sites)))
     seed = np.random.randint(1000, size=1)
 
     print("Starting transformations for data")
