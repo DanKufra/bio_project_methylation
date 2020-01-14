@@ -1,24 +1,31 @@
 from utils import*
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import torch
 import argparse as argparse
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-# import modin.pandas as pd
+import seaborn as sns
+
 
 
 class Net(nn.Module):
-    def __init__(self, transform_dim=100, hidden_dim=128, num_layers=5):
+    def __init__(self, transform_dim=100, hidden_dim=128, num_layers=5, center_triplet_loss=True, num_transformations=8):
         super(Net, self).__init__()
         self.layers = nn.ModuleList()
         for i in range(num_layers):
             if i == 0:
                 self.layers.append(nn.Linear(transform_dim, hidden_dim))
             elif i == num_layers-1:
-                self.layers.append(nn.Linear(hidden_dim, 1))
+                if center_triplet_loss:
+                    self.layers.append(nn.Linear(hidden_dim, 1))
+                else:
+                    self.layers.append(nn.Linear(hidden_dim, num_transformations))
             else:
                 self.layers.append(nn.Linear(hidden_dim, hidden_dim))
 
@@ -33,7 +40,7 @@ class Net(nn.Module):
 
 class ConvNet(nn.Module):
     def __init__(self, num_conv_layers, fully_connected_input_size, num_fully_connected_layers, hidden_dim,
-                 num_filters=32, kernel_size=3):
+                 num_filters=32, kernel_size=3, center_triplet_loss=True, num_transformations=8):
         super(ConvNet, self).__init__()
         self.layers = nn.ModuleList()
         for i in range(num_conv_layers):
@@ -52,13 +59,14 @@ class ConvNet(nn.Module):
             if i == 0:
                 self.layers.append(nn.Linear(int(fully_connected_input_size), int(hidden_dim)))
             elif i == num_fully_connected_layers-1:
-                self.layers.append(nn.Linear(int(hidden_dim), 1))
+                if center_triplet_loss:
+                    self.layers.append(nn.Linear(hidden_dim, 1))
+                else:
+                    self.layers.append(nn.Linear(hidden_dim, num_transformations))
             else:
                 self.layers.append(nn.Linear(int(hidden_dim), int(hidden_dim)))
 
     def forward(self, x):
-        import pdb
-        pdb.set_trace()
         for i, layer in enumerate(self.layers):
             if i < len(self.layers) - 1:
                 x = F.relu(layer(x))
@@ -90,9 +98,14 @@ class RandomConvNet(nn.Module):
         return x
 
 
+class RandomGeometricTransformation:
+    def __init__(self, shift=True):
+        pass
+
+
 class CenterTripletLoss(torch.nn.Module):
 
-    def __init__(self, num_classes, margin=1, pull_lambda=1, push_lambda=1):
+    def __init__(self, num_classes, margin=1.0, pull_lambda=1, push_lambda=1):
         super(CenterTripletLoss, self).__init__()
         self.margin = margin
         self.num_classes = num_classes
@@ -101,6 +114,7 @@ class CenterTripletLoss(torch.nn.Module):
         self.pull_lambda = pull_lambda
 
     def forward(self, x, centers, transform_inds):
+        x = x.reshape(-1, 1)
         # centers = torch.tensor(centers).reshape(-1, 1).float()
         centers = self.centers
         # print(centers)
@@ -301,7 +315,11 @@ def fix_mismatches(df):
     return df_clinical
 
 
-def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class_names=RECEPTOR_MULTICLASS_NAMES):
+def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class_names=RECEPTOR_MULTICLASS_NAMES, run_PCA=False):
+    if run_PCA:
+        pca = PCA(n_components=64)
+        X_train = pca.fit_transform(X_train)
+        X_test = pca.transform(X_test)
     print("Running SVM on data - predict %s :" % receptor)
     clf = SVC(class_weight='balanced', kernel='linear')
     clf.fit(X_train, Y_train)
@@ -320,7 +338,7 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
 
     print_stats('Random Forest', 'train', receptor, pred_train_rf, Y_train, multiclass, classes=class_names)
     print_stats('Random Forest', 'test', receptor, pred_test_rf, Y_test, multiclass, classes=class_names)
-    return pred_test, pred_train, pred_train_rf, pred_test_rf
+    return pred_test, pred_train, pred_test_rf, pred_train_rf
     # return pred_train_rf, pred_test_rf
 
 
@@ -447,7 +465,7 @@ def classify_receptor(df, receptor, print_wrong=False):
 def df_to_class_labels(df, classes=CLASSES):
     y = np.zeros(df.shape[0])
 
-    y[(df['er_ihc'] == 1) & (df['pr_ihc'] == 1) &  (df['her2_ihc_and_fish'] == 1)] = classes['111']
+    y[(df['er_ihc'] == 1) & (df['pr_ihc'] == 1) & (df['her2_ihc_and_fish'] == 1)] = classes['111']
     y[(df['er_ihc'] == 1) & (df['pr_ihc'] == 1) & ~(df['her2_ihc_and_fish'] == 1)] = classes['110']
     y[(df['er_ihc'] == 1) & ~(df['pr_ihc'] == 1) & (df['her2_ihc_and_fish'] == 1)] = classes['101']
     y[(df['er_ihc'] == 1) & ~(df['pr_ihc'] == 1) & ~(df['her2_ihc_and_fish'] == 1)] = classes['100']
@@ -467,9 +485,70 @@ def classify_multiclass(df):
     train_idx[np.random.choice(np.arange(df.shape[0]), int(df.shape[0] * 0.8))] = True
 
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, train_idx)
-
     pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf = classify('multiclass', X_test, X_train, Y_test, Y_train,
                                                                           multiclass=True, class_names=RECEPTOR_MULTICLASS_NAMES_REDUCED)
+
+    pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf = classify('multiclass', X_test, X_train, Y_test,
+                                                                          Y_train, multiclass=True, class_names=RECEPTOR_MULTICLASS_NAMES_REDUCED, run_PCA=True)
+
+    incorrect_ind_mask = pred_test_rf != Y_test
+    plot_TSNE(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000, incorrect=incorrect_ind_mask)
+
+
+def plot_TSNE(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40, n_iter=300, incorrect=None):
+    pca = PCA(n_components=pca_dim)
+    X_PCA = pca.fit_transform(X)
+    df_tsne_cols = ['x', 'y']
+    if tsne_dim == 3:
+        X_TSNE = TSNE(n_components=3, verbose=1, perplexity=perplexity, n_iter=n_iter).fit_transform(X_PCA)
+        ax = plt.figure(figsize=(6, 5)).gca(projection='3d')
+        df_tsne_cols.append('z')
+    else:
+        X_TSNE = TSNE(n_components=2, verbose=1, perplexity=perplexity, n_iter=n_iter).fit_transform(X_PCA)
+
+    if reduced_classes:
+        colors = 'r', 'g', 'b', 'c'
+        class_labels = CLASSES_REDUCED
+        names = RECEPTOR_MULTICLASS_NAMES_REDUCED
+    else:
+        colors = 'r', 'g', 'b', 'c', 'y', 'magenta', 'purple', 'orange'
+        class_labels = CLASSES
+        names = RECEPTOR_MULTICLASS_NAMES
+
+    if tsne_dim == 2:
+        if incorrect is not None:
+            df_tsne = pd.DataFrame(X_TSNE, columns=df_tsne_cols)
+            df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
+            df_tsne['error'] = incorrect
+            plt.figure(figsize=(16, 10))
+            sns.scatterplot(
+                x="x", y="y",
+                hue="label",
+                palette=sns.color_palette("hls", len(df_tsne['label'].unique())),
+                data=df_tsne,
+                legend='full',
+                alpha=0.7,
+                style='error'
+            )
+        else:
+            df_tsne = pd.DataFrame(X_TSNE, columns=df_tsne_cols)
+            df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
+            plt.figure(figsize=(16, 10))
+            sns.scatterplot(
+                x="x", y="y",
+                hue="label",
+                palette=sns.color_palette("hls", len(df_tsne['label'].unique())),
+                data=df_tsne,
+                legend='full',
+                alpha=0.7
+            )
+    else:
+
+        for i, c in zip(set(class_labels.values()), colors):
+            ax.scatter(xs=X_TSNE[Y == i, 0], ys=X_TSNE[Y == i, 1], zs=X_TSNE[Y == i, 2], c=c, label=names[i])
+
+        plt.legend()
+    plt.show()
 
 
 def transform_samples_array(X_array, num_transformations, transform_dim, seed):
@@ -487,7 +566,7 @@ def transform_samples_array(X_array, num_transformations, transform_dim, seed):
     return X_transformed_array
 
 
-def conv_transform_samples_array(X_array, num_transformations, num_downsample=8, num_filters=1, kernel_size=5, seed=555):
+def conv_transform_samples_array(X_array, num_transformations, num_downsample=1, num_filters=1, kernel_size=5, seed=555):
     with torch.no_grad():
         temp_net = RandomConvNet(int(num_downsample), num_filters=int(num_filters), kernel_size=int(kernel_size))
         temp_input = torch.from_numpy(np.reshape(X_array[0][0], (1, 1, -1))).float()
@@ -545,11 +624,11 @@ def get_anomaly_score(X, net, centers):
 
 
 def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, batch_size, num_epochs,
-              lr=0.0001, pull_lambda=1, push_lambda=1, use_conv=False):
+              lr=0.0001, pull_lambda=1, push_lambda=1, use_conv=True, center_triplet_loss=True):
     # Learn classifier + centers
     if use_conv:
-        net = ConvNet(num_conv_layers=4, num_fully_connected_layers=2,
-                      fully_connected_input=np.floor(X.shape[2] / 2**4), hidden_dim=128).float()
+        net = ConvNet(num_conv_layers=7, num_fully_connected_layers=2,
+                      fully_connected_input_size=np.floor(X.shape[2] / 2**6), hidden_dim=128).float()
     else:
         net = Net(hidden_dim=hidden_dim, transform_dim=transform_dim, num_layers=num_layers).float()
 
@@ -559,7 +638,10 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
             m.bias.data.fill_(0.01)
 
     net.apply(init_weights)
-    criterion = CenterTripletLoss(num_classes=num_transformations, margin=2.0, pull_lambda=pull_lambda, push_lambda=push_lambda)
+    if center_triplet_loss:
+        criterion = CenterTripletLoss(num_classes=num_transformations, margin=0.1, pull_lambda=pull_lambda, push_lambda=push_lambda)
+    else:
+        criterion = torch.nn.CrossEntropyLoss()
     optimizer = optim.Adam(list(net.parameters()) + list(criterion.parameters()), lr=lr, betas=(0.9, 0.999),
                            eps=1e-08, weight_decay=0.9)
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95, last_epoch=-1)
@@ -569,7 +651,6 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
     print_loss = 0
     print("Starting training, epoch num %d, batches_per_epoch %d" % (num_epochs, epoch_batches_num))
     for epoch in range(num_epochs):
-        scheduler.step(epoch)
         for batch in range(epoch_batches_num):
             if batch % print_train == 0:
                 print("Epoch num %d batch num %d loss %f" % (epoch, batch, print_loss / print_train))
@@ -587,17 +668,21 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
             # centers = calc_centers(net, X_real_train_transformed)
             # run neural network and calculate center triplet loss
             out = net.forward(x=x)
-            loss = criterion(out, centers=None, transform_inds=transform_inds)
+            if center_triplet_loss:
+                loss = criterion(out, centers=None, transform_inds=transform_inds)
+            else:
+                loss = criterion(out, transform_inds)
             loss.backward()
             optimizer.step()
             #TODO add accuracy measure?
             print_loss += loss.item()
+        scheduler.step(epoch)
     print("Finished Training")
     return net, criterion
 
 
-def GOAD(df, use_conv=False, num_transformations=4, transform_dim=5000, num_epochs=20,
-         batch_size=32, hidden_dim=512, num_layers=10, num_sites=-1, seed=None):
+def GOAD(df, use_conv=False, num_transformations=64, transform_dim=512, num_epochs=100, batch_size=32,
+         hidden_dim=512, num_layers=10, num_sites=-1, seed=None, center_triplet_loss=True):
     if seed:
         np.random.seed(seed)
     # class_Y = df_to_class_labels(df, classes=CLASSES)
@@ -612,13 +697,22 @@ def GOAD(df, use_conv=False, num_transformations=4, transform_dim=5000, num_epoc
     # anomaly_df = df[df.neg == 1]
     if num_sites == -1:
         random_sites = np.arange(real_df[real_df.columns[['cg' in col for col in real_df.columns]]].values.shape[1])
+        num_sites = len(random_sites)
     else:
         random_sites = np.sort(np.random.choice(real_df[real_df.columns[['cg' in col for col in real_df.columns]]].values.shape[1], num_sites, replace=False))
     X_real = real_df[real_df.columns[['cg' in col for col in real_df.columns]]].values[:, random_sites].astype(np.float32) / 1000.0
     X_anomaly = anomaly_df[anomaly_df.columns[['cg' in col for col in anomaly_df.columns]]].values[:, random_sites].astype(np.float32) / 1000.0
     # TODO actual random data...should be "easy" to catch as anomaly
-    # X_anomaly_random = (np.random.randint(0, 1000, X_anomaly.ravel().shape[0]) / 1000.0).reshape((-1, num_sites))
-    X_anomaly_random = X_anomaly[:, np.random.permutation(X_anomaly.shape[1])]
+    X_anomaly_random = (np.random.randint(0, 1000, X_anomaly.ravel().shape[0]) / 1000.0).reshape((-1, num_sites))
+    X_anomaly_random_permute = X_anomaly[:, np.random.permutation(X_anomaly.shape[1])]
+
+    X = df[df.columns[['cg' in col for col in df.columns]]].values.astype(np.float32) / 1000.0
+    class_Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
+    plot_TSNE(X, class_Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40, n_iter=10000)
+    import pdb
+    pdb.set_trace()
+    # X_anomaly = pca.transform(X_anomaly)
+    # X_anomaly_random = pca.transform(X_anomaly_random)
 
     # Create test set that includes part of Triple Negative and part of anomalies
     train_idx = np.zeros(X_real.shape[0], dtype=np.bool)
@@ -631,35 +725,43 @@ def GOAD(df, use_conv=False, num_transformations=4, transform_dim=5000, num_epoc
 
     print("Starting transformations for data")
     if use_conv:
-        transformed_data = conv_transform_samples_array([X_real_train, X_anomaly, X_anomaly_random, X_real_test], num_transformations, 8, seed)
+        transformed_data = conv_transform_samples_array([X_real_train, X_anomaly, X_anomaly_random, X_anomaly_random_permute, X_real_test], num_transformations, 1, seed)
     else:
-        transformed_data = transform_samples_array([X_real_train, X_anomaly, X_anomaly_random, X_real_test], num_transformations, transform_dim, seed)
+        transformed_data = transform_samples_array([X_real_train, X_anomaly, X_anomaly_random, X_anomaly_random_permute, X_real_test], num_transformations, transform_dim, seed)
     X_real_train_transformed = transformed_data[0]
     X_anomaly_transformed = transformed_data[1]
     X_anomaly_random_transformed = transformed_data[2]
-    X_real_test_transformed = transformed_data[3]
+    X_anomaly_random_permute_transformed = transformed_data[3]
+    X_real_test_transformed = transformed_data[4]
 
     # Learn classifier + centers
-    net, criterion = train_net(X_real_train_transformed, num_transformations, hidden_dim, X_real_train_transformed.shape[2],
-                               num_layers, batch_size, num_epochs, push_lambda=1, use_conv=use_conv)
+    net, criterion = train_net(X_real_train_transformed, num_transformations, hidden_dim, X_real_train_transformed.shape[2], num_layers, batch_size,
+                               num_epochs, push_lambda=1, use_conv=use_conv, lr=0.0001, center_triplet_loss=center_triplet_loss)
     # recalculate centers one last time
     # centers = calc_centers(net, X_real_train_transformed)
-    centers = criterion.centers.detach().numpy()
+    if center_triplet_loss:
+        centers = criterion.centers.detach().numpy()
 
-    score_anomaly = get_anomaly_score(X_anomaly_transformed, net, centers)
-    print("Score anomaly mean: %f" % np.mean(score_anomaly))
+        score_anomaly = get_anomaly_score(X_anomaly_transformed, net, centers)
+        print("Score anomaly mean: %f" % np.mean(score_anomaly))
 
-    score_anomaly_random = get_anomaly_score(X_anomaly_random_transformed, net, centers)
-    print("Score anomaly random mean: %f" % np.mean(score_anomaly_random))
+        score_anomaly_random = get_anomaly_score(X_anomaly_random_transformed, net, centers)
+        print("Score anomaly random mean: %f" % np.mean(score_anomaly_random))
 
-    score_real_test = get_anomaly_score(X_real_test_transformed, net, centers)
-    print("Score real_test mean: %f" % np.mean(score_real_test))
+        score_anomaly_random_permute = get_anomaly_score(X_anomaly_random_permute_transformed, net, centers)
+        print("Score anomaly random permutation mean: %f" % np.mean(score_anomaly_random_permute))
 
-    score_real_train = get_anomaly_score(X_real_train_transformed, net, centers)
-    print("Score real_train mean: %f" % np.mean(score_real_train))
+        score_real_test = get_anomaly_score(X_real_test_transformed, net, centers)
+        print("Score real_test mean: %f" % np.mean(score_real_test))
 
-    print(centers)
-    plot_centers(centers)
+        score_real_train = get_anomaly_score(X_real_train_transformed, net, centers)
+        print("Score real_train mean: %f" % np.mean(score_real_train))
+
+        print(centers)
+        plot_centers(centers)
+    else:
+        pass
+        #TODO implement mutliclass anomaly scoring in El-Yaniv et al: https://arxiv.org/abs/1805.10917
     import pdb
     pdb.set_trace()
     print("Here")
@@ -713,7 +815,7 @@ if __name__ == '__main__':
     if args.classify_multiclass:
         classify_multiclass(df_clinical)
     if args.run_GOAD:
-        GOAD(df_clinical, use_conv=True)
+        GOAD(df_clinical)
     import pdb
     pdb.set_trace()
     print('here')
