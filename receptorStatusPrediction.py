@@ -213,6 +213,7 @@ def print_stats(clsf, tt, receptor, preds, lbls, multiclass=False, cmap=plt.cm.B
         # calc ACC
         acc = np.sum(correct_ind_mask) / float(lbls.shape[0])
         print("%s %s %s: ACC: %f, TPR: %f, TNR: %f, numPos: %f, numNeg: %f" %(clsf, tt, receptor, acc, tpr, tnr, pos_num, neg_num))
+        return acc, tpr, tnr
 
 
 def read_data():
@@ -250,6 +251,7 @@ def read_data():
 
     # create a vector of her2_ihc_level which is the status based on the score we had
     final_df['her2_ihc_level'] = final_df['her2_ihc_score'].map(LEVEL_SCORE_MAPPING).fillna(final_df['her2_ihc_score'])
+
     return final_df
 
 
@@ -328,7 +330,7 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
     pred_train = clf.predict(X_train)
 
     print_stats('SVM', 'train', receptor, pred_train, Y_train, multiclass, classes=class_names)
-    print_stats('SVM', 'test', receptor, pred_test, Y_test, multiclass, classes=class_names)
+    svm_stats = print_stats('SVM', 'test', receptor, pred_test, Y_test, multiclass, classes=class_names)
 
     print("Running random forest  - predict %s :" % receptor)
     clf_rf = RandomForestClassifier(max_depth=3, n_estimators=100, class_weight='balanced')
@@ -337,8 +339,8 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
     pred_train_rf = clf_rf.predict(X_train)
 
     print_stats('Random Forest', 'train', receptor, pred_train_rf, Y_train, multiclass, classes=class_names)
-    print_stats('Random Forest', 'test', receptor, pred_test_rf, Y_test, multiclass, classes=class_names)
-    return pred_test, pred_train, pred_test_rf, pred_train_rf
+    rf_stats = print_stats('Random Forest', 'test', receptor, pred_test_rf, Y_test, multiclass, classes=class_names)
+    return pred_test, pred_train, pred_test_rf, pred_train_rf, svm_stats, rf_stats
     # return pred_train_rf, pred_test_rf
 
 
@@ -378,10 +380,12 @@ def classify_triple_negative(df, print_wrong=False):
 
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, train_idx)
 
-    pred_test_her2_svm, pred_train_her2_svm, pred_test_her2_rf, pred_train_her2_rf = classify('triple negative', X_test,
-                                                                                              X_train,
-                                                                                              Y_test,
-                                                                                              Y_train)
+    pred_test_her2_svm, pred_train_her2_svm, pred_test_her2_rf, \
+    pred_train_her2_rf, svm_stats, rf_stats = classify('triple negative',
+                                                       X_test,
+                                                       X_train,
+                                                       Y_test,
+                                                       Y_train)
 
     if print_wrong:
         patients_changed_by_fish = df.iloc[np.where((df['neg_pre_fish'] != df['neg']) |
@@ -423,6 +427,7 @@ def classify_triple_negative(df, print_wrong=False):
         print("Patients changed by fish that we misclassified - random forest")
         print(patients_wrong_train_rf.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
         print(patients_wrong_test_rf.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
+        return svm_stats, rf_stats
 
 
 def classify_receptor(df, receptor, print_wrong=False):
@@ -437,7 +442,7 @@ def classify_receptor(df, receptor, print_wrong=False):
 
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, train_idx)
 
-    pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf = classify(receptor, X_test, X_train, Y_test, Y_train)
+    pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf, svm_stats, rf_stats = classify(receptor, X_test, X_train, Y_test, Y_train)
 
     patients_wrong_test_svm = df.iloc[shuf_test_idx[np.where(pred_test_svm != Y_test)]][REL_COLS]
     patients_wrong_train_svm = df.iloc[shuf_train_idx[np.where(pred_train_svm != Y_train)]][REL_COLS]
@@ -460,6 +465,8 @@ def classify_receptor(df, receptor, print_wrong=False):
         print("%s wrong pred in mismatch with %s in rf" % (receptor, other_receptor))
         print(patients_wrong_train_rf.join(er_pr_mismatch, lsuffix='_new', how='inner'))
         print(patients_wrong_test_rf.join(er_pr_mismatch, lsuffix='_new', how='inner'))
+
+    return svm_stats, rf_stats
 
 
 def df_to_class_labels(df, classes=CLASSES):
@@ -807,11 +814,32 @@ if __name__ == '__main__':
     else:
         df_clinical = pd.read_csv(args.tsv_path, sep='\t', compression='gzip')
     if args.classify_triple_negative:
-        classify_triple_negative(df_clinical)
+        svm_stats, rf_stats = classify_triple_negative(df_clinical)
     if args.classify_receptor:
-        classify_receptor(df_clinical, 'er_ihc')
-        classify_receptor(df_clinical, 'pr_ihc')
-        classify_receptor(df_clinical, 'her2_ihc_and_fish')
+        er_svm_stats, er_rf_stats = classify_receptor(df_clinical, 'er_ihc')
+        pr_svm_stats, pr_rf_stats = classify_receptor(df_clinical, 'pr_ihc')
+        her2_svm_stats, her2_rf_stats = classify_receptor(df_clinical, 'her2_ihc_and_fish')
+        stats_df = pd.DataFrame({'Value' : np.stack([er_svm_stats, er_rf_stats,
+                                            pr_svm_stats, pr_rf_stats,
+                                            her2_svm_stats, her2_rf_stats]),
+                                 'Metric': ['Accuracy', 'TPR', 'TNR',
+                                            'Accuracy', 'TPR', 'TNR',
+                                            'Accuracy', 'TPR', 'TNR',
+                                            'Accuracy', 'TPR', 'TNR',
+                                            'Accuracy', 'TPR', 'TNR',
+                                            'Accuracy', 'TPR', 'TNR'],
+                                 'Classifier': ['svm', 'svm', 'svm', 'rf', 'rf', 'rf',
+                                                'svm', 'svm', 'svm', 'rf', 'rf', 'rf'
+                                                'svm', 'svm', 'svm', 'rf', 'rf', 'rf'],
+                                 'Receptor': ['er', 'er', 'er', 'er', 'er', 'er',
+                                              'pr', 'pr', 'pr', 'pr', 'pr', 'pr',
+                                              'her2', 'her2', 'her2', 'her2', 'her2', 'her2']})
+        g = sns.catplot(x="Receptor", y="Value",
+                        hue="Metric", col="Classifier",
+                        data=tips, kind="bar",
+                        height=4, aspect=.7)
+        g.savefig('./receptor_barplot.png')
+
     if args.classify_multiclass:
         classify_multiclass(df_clinical)
     if args.run_GOAD:
