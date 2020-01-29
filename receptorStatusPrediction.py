@@ -819,17 +819,19 @@ if __name__ == '__main__':
         er_svm_stats, er_rf_stats = classify_receptor(df_clinical, 'er_ihc')
         pr_svm_stats, pr_rf_stats = classify_receptor(df_clinical, 'pr_ihc')
         her2_svm_stats, her2_rf_stats = classify_receptor(df_clinical, 'her2_ihc_and_fish')
-        stats_df = pd.DataFrame({'Value' : np.stack([er_svm_stats, er_rf_stats,pr_svm_stats, pr_rf_stats,her2_svm_stats, her2_rf_stats]).ravel(),
+        stats_df = pd.DataFrame({'Value' : np.stack([er_svm_stats, er_rf_stats,
+                                                     pr_svm_stats, pr_rf_stats,
+                                                     her2_svm_stats, her2_rf_stats]).ravel(),
                                  'Metric': ['Accuracy', 'TPR', 'TNR', 'Accuracy', 'TPR', 'TNR',
                                             'Accuracy', 'TPR', 'TNR', 'Accuracy', 'TPR', 'TNR',
                                             'Accuracy', 'TPR', 'TNR', 'Accuracy', 'TPR', 'TNR'],
                                  'Classifier': ['svm', 'svm', 'svm', 'rf', 'rf', 'rf',
-                                                'svm', 'svm', 'svm', 'rf', 'rf', 'rf'
+                                                'svm', 'svm', 'svm', 'rf', 'rf', 'rf',
                                                 'svm', 'svm', 'svm', 'rf', 'rf', 'rf'],
                                  'Receptor': ['er', 'er', 'er', 'er', 'er', 'er',
                                               'pr', 'pr', 'pr', 'pr', 'pr', 'pr',
                                               'her2', 'her2', 'her2', 'her2', 'her2', 'her2']})
-        g = sns.catplot(x="Receptor", y="Value",hue="Metric", col="Classifier",data=stats_df, kind="bar", height=4, aspect=.7)
+        g = sns.catplot(x="Receptor", y="Value",hue="Metric", col="Classifier", data=stats_df, kind="bar", height=4, aspect=.7)
         g.savefig('./receptor_barplot.png')
 
     if args.classify_multiclass:
