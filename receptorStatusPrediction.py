@@ -378,9 +378,9 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
 
     train_idx = (df['neg_pre_fish'] == df['neg']) & \
                 (df['pos_pre_fish'] == df['pos'])
-    train_idx = train_idx & ((df['her2_ihc'] == df['her2_ihc_level']) &
-                             (df['her2_ihc_level'] != -2) &
-                             ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
+    # train_idx = train_idx & ((df['her2_ihc'] == df['her2_ihc_level']) &
+    #                          (df['her2_ihc_level'] != -2) &
+    #                          ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
 
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, train_idx)
 
@@ -423,8 +423,7 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
 
         patients_wrong_test_rf = df.iloc[rf_test_wrong_inds][REL_COLS]
         patients_wrong_train_rf = df.iloc[rf_train_wrong_inds][REL_COLS]
-        import pdb
-        pdb.set_trace()
+
         patient_name_index = 'patient_name'
         patients_wrong_test_rf.index.name = patient_name_index
         patients_wrong_train_rf.index.name = patient_name_index
@@ -439,6 +438,9 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
         print("Patients changed by fish that we misclassified - random forest")
         print(patients_wrong_train_rf.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
         print(patients_wrong_test_rf.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
+
+        import pdb
+        pdb.set_trace()
 
     incorrect_ind_mask = pred_test_her2_rf != Y_test
 
