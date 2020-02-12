@@ -323,7 +323,8 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
         X_train = pca.fit_transform(X_train)
         X_test = pca.transform(X_test)
     print("Running SVM on data - predict %s :" % receptor)
-    clf = SVC(class_weight='balanced', kernel='poly', degree=2)
+    # clf = SVC(class_weight='balanced', kernel='poly', degree=2)
+    clf = SVC(class_weight='balanced', kernel='linear')
     clf.fit(X_train, Y_train)
 
     pred_test = clf.predict(X_test)
@@ -388,7 +389,8 @@ def classify_triple_negative(df, print_wrong=False, run_smote=False):
     pred_test_her2_svm, pred_train_her2_svm, pred_test_her2_rf, \
     pred_train_her2_rf, svm_stats, rf_stats = classify('triple negative',
                                                        X_test, X_train,
-                                                       Y_test, Y_train)
+                                                       Y_test, Y_train,
+                                                       run_PCA=True)
 
     if print_wrong:
         patients_changed_by_fish = df.iloc[np.where((df['neg_pre_fish'] != df['neg']) |
