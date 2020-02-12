@@ -817,7 +817,8 @@ if __name__ == '__main__':
                                      'Metric': ['Accuracy', 'TPR', 'TNR', 'Accuracy', 'TPR', 'TNR'],
                                      'Classifier': ['SVM', 'SVM', 'SVM',
                                                     'Random Forest', 'Random Forest', 'Random Forest']})
-            g = sns.catplot(x="Classifier", y="Value", hue="Metric", data=stats_df, kind="bar", height=4, aspect=.7).set_title("Triple Negative Status")
+            g = sns.catplot(x="Classifier", y="Value", hue="Metric", data=stats_df, kind="bar", height=4, aspect=.7)
+            g.set_titles("Triple Negative Status")
             g.savefig('./triple_negative_barplot.png')
     if args.classify_receptor:
         er_svm_stats, er_rf_stats = classify_receptor(df_clinical, 'er_ihc')
