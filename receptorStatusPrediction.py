@@ -395,7 +395,7 @@ def classify_triple_negative(df, print_wrong=False, run_smote=False):
                                                        Y_test, Y_train,
                                                        run_PCA=True)
     incorrect_ind_mask = pred_test_her2_rf != Y_test
-    plot_tsne(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000, incorrect=incorrect_ind_mask)
+    plot_tsne(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000, incorrect=incorrect_ind_mask, title='Triple Negative TSNE')
 
     if print_wrong:
         patients_changed_by_fish = df.iloc[np.where((df['neg_pre_fish'] != df['neg']) |
@@ -512,7 +512,7 @@ def classify_multiclass(df):
     plot_tsne(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000, incorrect=incorrect_ind_mask)
 
 
-def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40, n_iter=300, incorrect=None):
+def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40, n_iter=300, incorrect=None, title=None):
     pca = PCA(n_components=pca_dim)
     X_PCA = pca.fit_transform(X)
     df_tsne_cols = ['x', 'y']
@@ -537,7 +537,7 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
             df_tsne = pd.DataFrame(X_TSNE, columns=df_tsne_cols)
             df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
             df_tsne['error'] = incorrect
-            plt.figure(figsize=(16, 10))
+            ax = plt.figure(figsize=(16, 10))
             sns.scatterplot(
                 x="x", y="y",
                 hue="label",
@@ -549,7 +549,7 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
         else:
             df_tsne = pd.DataFrame(X_TSNE, columns=df_tsne_cols)
             df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
-            plt.figure(figsize=(16, 10))
+            ax = plt.figure(figsize=(16, 10))
             sns.scatterplot(
                 x="x", y="y",
                 hue="label",
@@ -562,7 +562,9 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
             ax.scatter(xs=X_TSNE[Y == i, 0], ys=X_TSNE[Y == i, 1], zs=X_TSNE[Y == i, 2], c=c, label=names[i])
 
         plt.legend()
-    plt.savefig('TSNE_dump.png')
+    if title is not None:
+        ax.set_title(title)
+    plt.savefig(('%s.png' % title).replace(' ', '_'))
 
 
 def transform_samples_array(X_array, num_transformations, transform_dim, seed):
