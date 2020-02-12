@@ -395,30 +395,34 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
                                                        Y_test, Y_train,
                                                        run_PCA=True)
     if print_wrong:
-        patients_changed_by_fish = df.iloc[np.where((df['neg_pre_fish'] != df['neg']) |
-                                                    (df['pos_pre_fish'] != df['pos']))][REL_COLS]
+        changed_by_fish_inds = np.where((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos']))[0]
+        patients_changed_by_fish = df.iloc[changed_by_fish_inds][REL_COLS]
         print("Patients whose label changed by fish update:")
         print(patients_changed_by_fish)
-
+        changed_by_mismatch_inds = np.where((df['pos'] == 1) & (((df['er_ihc'] == 1) & (df['pr_ihc'] == -1)) |
+                                                                ((df['er_ihc'] == -1) & (df['pr_ihc'] == 1))) &
+                                            (df['her2_ihc_and_fish'] == -1))[0]
         print("Patients whose er_ihc mismatches pr_ihc and changes label:")
-        patients_changed_by_mismatch = df.iloc[np.where((df['pos'] == 1) & (((df['er_ihc'] == 1) &
-                                                                             (df['pr_ihc'] == -1)) |
-                                                                            ((df['er_ihc'] == -1) &
-                                                                             (df['pr_ihc'] == 1))) &
-                                                        (df['her2_ihc_and_fish'] == -1))][REL_COLS]
+        patients_changed_by_mismatch = df.iloc[changed_by_mismatch_inds][REL_COLS]
 
-        patients_with_ihc_level_diff = df.iloc[np.where(((df['her2_ihc'] != df['her2_ihc_level']) &
+        ihc_mismatch_inds = np.where(((df['her2_ihc'] != df['her2_ihc_level']) &
                                                          (df['her2_ihc_level'] != -2) &
-                                                         ((df['her2_fish'] == -2) | (df['her2_fish'] == 0))))][REL_COLS]
+                                                         ((df['her2_fish'] == -2) | (df['her2_fish'] == 0))))[0]
+        patients_with_ihc_level_diff = df.iloc[ihc_mismatch_inds][REL_COLS]
 
         print("Patients whose IHC level mismatches status (and no fish used):")
         print(patients_with_ihc_level_diff)
 
-        patients_wrong_test_svm = df.iloc[shuf_test_idx[np.where(pred_test_her2_svm != Y_test)]][REL_COLS]
-        patients_wrong_train_svm = df.iloc[shuf_train_idx[np.where(pred_train_her2_svm != Y_train)]][REL_COLS]
+        svm_test_wrong_inds = shuf_test_idx[np.where(pred_test_her2_svm != Y_test)]
+        svm_train_wrong_inds = shuf_train_idx[np.where(pred_train_her2_svm != Y_train)]
+        rf_test_wrong_inds = shuf_test_idx[np.where(pred_test_her2_rf != Y_test)]
+        rf_train_wrong_inds = shuf_train_idx[np.where(pred_train_her2_rf != Y_train)]
 
-        patients_wrong_test_rf = df.iloc[shuf_test_idx[np.where(pred_test_her2_rf != Y_test)]][REL_COLS]
-        patients_wrong_train_rf = df.iloc[shuf_train_idx[np.where(pred_train_her2_rf != Y_train)]][REL_COLS]
+        patients_wrong_test_svm = df.iloc[svm_test_wrong_inds][REL_COLS]
+        patients_wrong_train_svm = df.iloc[svm_train_wrong_inds][REL_COLS]
+
+        patients_wrong_test_rf = df.iloc[rf_test_wrong_inds][REL_COLS]
+        patients_wrong_train_rf = df.iloc[rf_train_wrong_inds][REL_COLS]
         import pdb
         pdb.set_trace()
         patient_name_index = 'patient_name'
