@@ -381,11 +381,8 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
     2. Observations where IHC level and IHC status did not match
     """
 
-    test_idx = (df['neg_pre_fish'] != df['neg']) & \
-                (df['pos_pre_fish'] != df['pos'])
-    test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) &
-                             (df['her2_ihc_level'] != -2) &
-                             ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
+    test_idx = ((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos'])) & (~df['NA_pre_fish'])
+    test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) & (df['her2_ihc_level'] != -2) & ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
 
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, test_idx)
 
