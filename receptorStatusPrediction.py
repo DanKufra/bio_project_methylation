@@ -383,7 +383,7 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
                              (df['her2_ihc_level'] != -2) &
                              ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
 
-    X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, train_idx)
+    X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, test_idx)
 
     if run_smote:
         sm = SMOTE(sampling_strategy='auto', k_neighbors=5, random_state=999)
