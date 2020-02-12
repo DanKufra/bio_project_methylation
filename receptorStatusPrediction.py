@@ -394,7 +394,7 @@ def classify_triple_negative(df, print_wrong=False, run_smote=False):
                                                        X_test, X_train,
                                                        Y_test, Y_train,
                                                        run_PCA=True)
-    incorrect_ind_mask = pred_test_rf != Y_test
+    incorrect_ind_mask = pred_test_her2_rf != Y_test
     plot_tsne(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000, incorrect=incorrect_ind_mask)
 
     if print_wrong:
