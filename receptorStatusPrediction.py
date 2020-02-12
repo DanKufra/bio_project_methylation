@@ -319,7 +319,7 @@ def fix_mismatches(df):
 
 def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class_names=RECEPTOR_MULTICLASS_NAMES, run_PCA=False):
     if run_PCA:
-        pca = PCA(n_components=64)
+        pca = PCA(n_components=32)
         X_train = pca.fit_transform(X_train)
         X_test = pca.transform(X_test)
     print("Running SVM on data - predict %s :" % receptor)
