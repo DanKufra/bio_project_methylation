@@ -394,9 +394,6 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
                                                        X_test, X_train,
                                                        Y_test, Y_train,
                                                        run_PCA=True)
-    incorrect_ind_mask = pred_test_her2_rf != Y_test
-    plot_tsne(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000, incorrect=incorrect_ind_mask, title='Triple Negative TSNE')
-
     if print_wrong:
         patients_changed_by_fish = df.iloc[np.where((df['neg_pre_fish'] != df['neg']) |
                                                     (df['pos_pre_fish'] != df['pos']))][REL_COLS]
@@ -437,6 +434,13 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
         print("Patients changed by fish that we misclassified - random forest")
         print(patients_wrong_train_rf.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
         print(patients_wrong_test_rf.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
+
+    incorrect_ind_mask = pred_test_her2_rf != Y_test
+    import pdb
+    pdb.set_trace()
+    plot_tsne(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000,
+              incorrect=incorrect_ind_mask, title='Triple Negative TSNE')
+
     return svm_stats, rf_stats
 
 
