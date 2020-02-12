@@ -3,15 +3,15 @@ from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-import matplotlib.pyplot as plt
+from imblearn.over_sampling import SMOTE
 from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
 import torch
 import argparse as argparse
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import seaborn as sns
-
 
 
 class Net(nn.Module):
@@ -379,6 +379,9 @@ def classify_triple_negative(df, print_wrong=False):
                              ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
 
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, train_idx)
+
+    sm = SMOTE(sampling_strategy='auto', k_neighbors=k, random_state=seed)
+    X_train, Y_train = sm.fit_resample(X_train, Y_train)
 
     pred_test_her2_svm, pred_train_her2_svm, pred_test_her2_rf, \
     pred_train_her2_rf, svm_stats, rf_stats = classify('triple negative',
