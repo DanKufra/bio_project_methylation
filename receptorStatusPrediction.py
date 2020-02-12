@@ -357,7 +357,7 @@ def shuffle_idx(X, Y, train_idx):
     return X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx
 
 
-def classify_triple_negative(df, print_wrong=False):
+def classify_triple_negative(df, print_wrong=False, run_smote=True):
     # Create labels
     Y = np.zeros(df.shape[0])
     Y[df.pos] = 1
@@ -380,8 +380,9 @@ def classify_triple_negative(df, print_wrong=False):
 
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, train_idx)
 
-    sm = SMOTE(sampling_strategy='auto', k_neighbors=1, random_state=999)
-    X_train, Y_train = sm.fit_resample(X_train, Y_train)
+    if run_smote:
+        sm = SMOTE(sampling_strategy='auto', k_neighbors=10, random_state=999)
+        X_train, Y_train = sm.fit_resample(X_train, Y_train)
 
 
     pred_test_her2_svm, pred_train_her2_svm, pred_test_her2_rf, \
