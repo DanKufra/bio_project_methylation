@@ -363,6 +363,7 @@ def shuffle_idx(X, Y, test_idx=None):
 
 
 def classify_triple_negative(df, print_wrong=True, run_smote=False):
+    print("Classifying Triple Negative")
     # Create labels
     Y = np.zeros(df.shape[0])
     Y[df.pos] = 1
