@@ -442,8 +442,8 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
         print(patients_wrong_train_rf.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
         print(patients_wrong_test_rf.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
 
-    import pdb
-    pdb.set_trace()
+    # import pdb
+    # pdb.set_trace()
 
     incorrect_ind_mask = pred_test_her2_rf != Y_test
     incorrect_susp_mask = np.zeros_like(incorrect_ind_mask)
@@ -553,7 +553,7 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
             df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
             df_tsne['error'] = incorrect
             if incorrect_susp is not None:
-                df_tsne['error'][np.where(incorrect_susp)] = 2
+                df_tsne['error'].iloc[np.where(incorrect_susp)] = 2
             fig = plt.figure(figsize=(16, 10))
             ax = fig.subplots()
             sns.scatterplot(
