@@ -819,7 +819,7 @@ if __name__ == '__main__':
                                                     'Random Forest', 'Random Forest', 'Random Forest']})
             ax = sns.barplot(x="Classifier", y="Value", hue="Metric", data=stats_df)
             ax.set_title("Triple Negative Status")
-            ax.savefig('./triple_negative_barplot.png')
+            plt.savefig('./triple_negative_barplot.png')
     if args.classify_receptor:
         er_svm_stats, er_rf_stats = classify_receptor(df_clinical, 'er_ihc')
         pr_svm_stats, pr_rf_stats = classify_receptor(df_clinical, 'pr_ihc')
