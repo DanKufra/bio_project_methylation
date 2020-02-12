@@ -3,6 +3,7 @@ from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
+from sklearn import preprocessing
 from imblearn.over_sampling import SMOTE
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
@@ -322,9 +323,8 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
         pca = PCA(n_components=64)
         X_train = pca.fit_transform(X_train)
         X_test = pca.transform(X_test)
-    from sklearn import preprocessing
-    X_train = preprocessing.scale(X_train)
-    X_test = preprocessing.scale(X_test)
+        X_train = preprocessing.scale(X_train)
+        X_test = preprocessing.scale(X_test)
 
     print("Running SVM on data - predict %s :" % receptor)
     # clf = SVC(class_weight='balanced', kernel='poly', degree=2)
@@ -419,7 +419,8 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
 
         patients_wrong_test_rf = df.iloc[shuf_test_idx[np.where(pred_test_her2_rf != Y_test)]][REL_COLS]
         patients_wrong_train_rf = df.iloc[shuf_train_idx[np.where(pred_train_her2_rf != Y_train)]][REL_COLS]
-
+        import pdb
+        pdb.set_trace()
         patient_name_index = 'patient_name'
         patients_wrong_test_rf.index.name = patient_name_index
         patients_wrong_train_rf.index.name = patient_name_index
@@ -436,8 +437,7 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
         print(patients_wrong_test_rf.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
 
     incorrect_ind_mask = pred_test_her2_rf != Y_test
-    import pdb
-    pdb.set_trace()
+
     plot_tsne(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000,
               incorrect=incorrect_ind_mask, title='Triple Negative TSNE')
 
