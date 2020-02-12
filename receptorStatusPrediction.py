@@ -812,6 +812,13 @@ if __name__ == '__main__':
         df_clinical = pd.read_csv(args.tsv_path, sep='\t', compression='gzip')
     if args.classify_triple_negative:
         svm_stats, rf_stats = classify_triple_negative(df_clinical)
+        if args.dump_vis:
+            stats_df = pd.DataFrame({'Value': np.stack([svm_stats, rf_stats]).ravel(),
+                                     'Metric': ['Accuracy', 'TPR', 'TNR', 'Accuracy', 'TPR', 'TNR'],
+                                     'Classifier': ['SVM', 'SVM', 'SVM',
+                                                    'Random Forest', 'Random Forest', 'Random Forest']})
+            g = sns.catplot(x="Classifier", y="Value", hue="Metric", data=stats_df, kind="bar", height=4, aspect=.7).set_title("Triple Negative Status")
+            g.savefig('./triple_negative_barplot.png')
     if args.classify_receptor:
         er_svm_stats, er_rf_stats = classify_receptor(df_clinical, 'er_ihc')
         pr_svm_stats, pr_rf_stats = classify_receptor(df_clinical, 'pr_ihc')
