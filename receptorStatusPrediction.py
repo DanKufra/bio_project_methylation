@@ -450,7 +450,7 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
     incorrect_susp_mask[np.intersect1d(np.intersect1d(rf_test_wrong_inds, changed_by_fish_inds), shuf_test_idx, return_indices=True)[2]] = 1
 
     plot_tsne(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000,
-              incorrect=incorrect_ind_mask, incorrect_suspicious=incorrect_susp_mask, title='Triple Negative TSNE')
+              incorrect=incorrect_ind_mask, incorrect_susp=incorrect_susp_mask, title='Triple Negative TSNE')
 
     return svm_stats, rf_stats
 
