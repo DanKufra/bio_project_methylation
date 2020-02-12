@@ -320,6 +320,7 @@ def fix_mismatches(df):
 
 def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class_names=RECEPTOR_MULTICLASS_NAMES, run_PCA=False):
     if run_PCA:
+        print(X_train.shape)
         num_components = 64
         print("Running PCA to %d components" % num_components)
         pca = PCA(n_components=num_components)
