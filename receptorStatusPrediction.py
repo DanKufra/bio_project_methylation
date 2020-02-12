@@ -318,10 +318,12 @@ def fix_mismatches(df):
 
 
 def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class_names=RECEPTOR_MULTICLASS_NAMES, run_PCA=False):
+    print(X_train.shape)
     if run_PCA:
         pca = PCA(n_components=32)
         X_train = pca.fit_transform(X_train)
         X_test = pca.transform(X_test)
+    print(X_train.shape)
     print("Running SVM on data - predict %s :" % receptor)
     # clf = SVC(class_weight='balanced', kernel='poly', degree=2)
     clf = SVC(class_weight='balanced', kernel='linear')
