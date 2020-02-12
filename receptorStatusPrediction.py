@@ -323,7 +323,11 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
         pca = PCA(n_components=32)
         X_train = pca.fit_transform(X_train)
         X_test = pca.transform(X_test)
-    print(X_train.shape)
+    from sklearn import preprocessing
+
+    X_train = preprocessing.scale(X_train)
+    X_test = preprocessing.scale(X_test)
+
     print("Running SVM on data - predict %s :" % receptor)
     # clf = SVC(class_weight='balanced', kernel='poly', degree=2)
     clf = SVC(class_weight='balanced', kernel='linear')
@@ -344,7 +348,6 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
     print_stats('Random Forest', 'train', receptor, pred_train_rf, Y_train, multiclass, classes=class_names)
     rf_stats = print_stats('Random Forest', 'test', receptor, pred_test_rf, Y_test, multiclass, classes=class_names)
     return pred_test, pred_train, pred_test_rf, pred_train_rf, svm_stats, rf_stats
-    # return pred_train_rf, pred_test_rf
 
 
 def shuffle_idx(X, Y, train_idx):
