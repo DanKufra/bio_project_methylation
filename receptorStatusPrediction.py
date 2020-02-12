@@ -382,10 +382,8 @@ def classify_triple_negative(df, print_wrong=False):
 
     pred_test_her2_svm, pred_train_her2_svm, pred_test_her2_rf, \
     pred_train_her2_rf, svm_stats, rf_stats = classify('triple negative',
-                                                       X_test,
-                                                       X_train,
-                                                       Y_test,
-                                                       Y_train)
+                                                       X_test, X_train,
+                                                       Y_test, Y_train)
 
     if print_wrong:
         patients_changed_by_fish = df.iloc[np.where((df['neg_pre_fish'] != df['neg']) |
@@ -407,18 +405,18 @@ def classify_triple_negative(df, print_wrong=False):
         print("Patients whose IHC level mismatches status (and no fish used):")
         print(patients_with_ihc_level_diff)
 
-
         patients_wrong_test_svm = df.iloc[shuf_test_idx[np.where(pred_test_her2_svm != Y_test)]][REL_COLS]
         patients_wrong_train_svm = df.iloc[shuf_train_idx[np.where(pred_train_her2_svm != Y_train)]][REL_COLS]
 
         patients_wrong_test_rf = df.iloc[shuf_test_idx[np.where(pred_test_her2_rf != Y_test)]][REL_COLS]
         patients_wrong_train_rf = df.iloc[shuf_train_idx[np.where(pred_train_her2_rf != Y_train)]][REL_COLS]
 
-        patients_wrong_test_rf.index.name = 'patient_name'
-        patients_wrong_train_rf.index.name = 'patient_name'
-        patients_wrong_test_svm.index.name = 'patient_name'
-        patients_wrong_train_svm.index.name = 'patient_name'
-        patients_changed_by_fish.index.name = 'patient_name'
+        patient_name_index = 'patient_name'
+        patients_wrong_test_rf.index.name = patient_name_index
+        patients_wrong_train_rf.index.name = patient_name_index
+        patients_wrong_test_svm.index.name = patient_name_index
+        patients_wrong_train_svm.index.name = patient_name_index
+        patients_changed_by_fish.index.name = patient_name_index
 
         print("Patients changed by fish that we misclassified - svm")
         print(patients_wrong_train_svm.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
@@ -427,7 +425,7 @@ def classify_triple_negative(df, print_wrong=False):
         print("Patients changed by fish that we misclassified - random forest")
         print(patients_wrong_train_rf.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
         print(patients_wrong_test_rf.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
-        return svm_stats, rf_stats
+    return svm_stats, rf_stats
 
 
 def classify_receptor(df, receptor, print_wrong=False):
@@ -499,10 +497,10 @@ def classify_multiclass(df):
                                                                           Y_train, multiclass=True, class_names=RECEPTOR_MULTICLASS_NAMES_REDUCED, run_PCA=True)
 
     incorrect_ind_mask = pred_test_rf != Y_test
-    plot_TSNE(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000, incorrect=incorrect_ind_mask)
+    plot_tsne(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000, incorrect=incorrect_ind_mask)
 
 
-def plot_TSNE(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40, n_iter=300, incorrect=None):
+def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40, n_iter=300, incorrect=None):
     pca = PCA(n_components=pca_dim)
     X_PCA = pca.fit_transform(X)
     df_tsne_cols = ['x', 'y']
@@ -535,8 +533,7 @@ def plot_TSNE(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
                 data=df_tsne,
                 legend='full',
                 alpha=0.7,
-                style='error'
-            )
+                style='error')
         else:
             df_tsne = pd.DataFrame(X_TSNE, columns=df_tsne_cols)
             df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
@@ -547,10 +544,8 @@ def plot_TSNE(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
                 palette=sns.color_palette("hls", len(df_tsne['label'].unique())),
                 data=df_tsne,
                 legend='full',
-                alpha=0.7
-            )
+                alpha=0.7)
     else:
-
         for i, c in zip(set(class_labels.values()), colors):
             ax.scatter(xs=X_TSNE[Y == i, 0], ys=X_TSNE[Y == i, 1], zs=X_TSNE[Y == i, 2], c=c, label=names[i])
 
@@ -628,6 +623,21 @@ def get_anomaly_score(X, net, centers):
     likelihood = calc_likelihood(scores=net_scores, centers=centers)
     score = np.sum(-1*np.log(likelihood), axis=0)
     return score
+
+
+def calc_centers(net, X):
+    centers = np.zeros(X.shape[0])
+    for transform in range(X.shape[0]):
+        for sample in range(X.shape[1]):
+            with torch.no_grad():
+                centers[transform] += net.forward(torch.from_numpy(X[transform, sample]).float())
+        centers[transform] /= X.shape[1]
+    return centers
+
+
+def plot_centers(centers):
+    plt.scatter(centers[:, 0], np.full(centers.shape, 4), marker="x", color='r')
+    plt.show()
 
 
 def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, batch_size, num_epochs,
@@ -774,21 +784,6 @@ def GOAD(df, use_conv=False, num_transformations=64, transform_dim=512, num_epoc
     print("Here")
 
 
-def calc_centers(net, X):
-    centers = np.zeros(X.shape[0])
-    for transform in range(X.shape[0]):
-        for sample in range(X.shape[1]):
-            with torch.no_grad():
-                centers[transform] += net.forward(torch.from_numpy(X[transform, sample]).float())
-        centers[transform] /= X.shape[1]
-    return centers
-
-
-def plot_centers(centers):
-    plt.scatter(centers[:, 0], np.full(centers.shape, 4), marker="x", color='r')
-    plt.show()
-
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--tsv_path', type=str, default="",
@@ -801,6 +796,8 @@ def parse_args():
                         help='Whether to classify each BRCA type in multiclass')
     parser.add_argument('--run_GOAD', default=False, action='store_true',
                         help='Whether to run GOAD')
+    parser.add_argument('--dump_vis', default=False, action='store_true',
+                        help='Whether to dump visualizations')
     args = parser.parse_args()
     return args
 
@@ -819,21 +816,21 @@ if __name__ == '__main__':
         er_svm_stats, er_rf_stats = classify_receptor(df_clinical, 'er_ihc')
         pr_svm_stats, pr_rf_stats = classify_receptor(df_clinical, 'pr_ihc')
         her2_svm_stats, her2_rf_stats = classify_receptor(df_clinical, 'her2_ihc_and_fish')
-        stats_df = pd.DataFrame({'Value': np.stack([er_svm_stats, er_rf_stats,
-                                                     pr_svm_stats, pr_rf_stats,
-                                                     her2_svm_stats, her2_rf_stats]).ravel(),
-                                 'Metric': ['Accuracy', 'TPR', 'TNR', 'Accuracy', 'TPR', 'TNR',
-                                            'Accuracy', 'TPR', 'TNR', 'Accuracy', 'TPR', 'TNR',
-                                            'Accuracy', 'TPR', 'TNR', 'Accuracy', 'TPR', 'TNR'],
-                                 'Classifier': ['SVM', 'SVM', 'SVM', 'Random Forest', 'Random Forest', 'Random Forest',
-                                                'SVM', 'SVM', 'SVM', 'Random Forest', 'Random Forest', 'Random Forest',
-                                                'SVM', 'SVM', 'SVM', 'Random Forest', 'Random Forest', 'Random Forest'],
-                                 'Receptor': ['ER', 'ER', 'ER', 'ER', 'ER', 'ER',
-                                              'PR', 'PR', 'PR', 'PR', 'PR', 'PR',
-                                              'HER2', 'HER2', 'HER2', 'HER2', 'HER2', 'HER2']})
-        g = sns.catplot(x="Receptor", y="Value", hue="Metric", col="Classifier", data=stats_df, kind="bar", height=4, aspect=.7).set_title("Single Receptor Status")
-        g.savefig('./receptor_barplot.png')
-
+        if args.dump_vis:
+            stats_df = pd.DataFrame({'Value': np.stack([er_svm_stats, er_rf_stats,
+                                                         pr_svm_stats, pr_rf_stats,
+                                                         her2_svm_stats, her2_rf_stats]).ravel(),
+                                     'Metric': ['Accuracy', 'TPR', 'TNR', 'Accuracy', 'TPR', 'TNR',
+                                                'Accuracy', 'TPR', 'TNR', 'Accuracy', 'TPR', 'TNR',
+                                                'Accuracy', 'TPR', 'TNR', 'Accuracy', 'TPR', 'TNR'],
+                                     'Classifier': ['SVM', 'SVM', 'SVM', 'Random Forest', 'Random Forest', 'Random Forest',
+                                                    'SVM', 'SVM', 'SVM', 'Random Forest', 'Random Forest', 'Random Forest',
+                                                    'SVM', 'SVM', 'SVM', 'Random Forest', 'Random Forest', 'Random Forest'],
+                                     'Receptor': ['ER', 'ER', 'ER', 'ER', 'ER', 'ER',
+                                                  'PR', 'PR', 'PR', 'PR', 'PR', 'PR',
+                                                  'HER2', 'HER2', 'HER2', 'HER2', 'HER2', 'HER2']})
+            g = sns.catplot(x="Receptor", y="Value", hue="Metric", col="Classifier", data=stats_df, kind="bar", height=4, aspect=.7).set_title("Single Receptor Status")
+            g.savefig('./receptor_barplot.png')
     if args.classify_multiclass:
         classify_multiclass(df_clinical)
     if args.run_GOAD:
