@@ -318,13 +318,11 @@ def fix_mismatches(df):
 
 
 def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class_names=RECEPTOR_MULTICLASS_NAMES, run_PCA=False):
-    print(X_train.shape)
     if run_PCA:
-        pca = PCA(n_components=32)
+        pca = PCA(n_components=64)
         X_train = pca.fit_transform(X_train)
         X_test = pca.transform(X_test)
     from sklearn import preprocessing
-
     X_train = preprocessing.scale(X_train)
     X_test = preprocessing.scale(X_test)
 
