@@ -323,7 +323,7 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
         X_train = pca.fit_transform(X_train)
         X_test = pca.transform(X_test)
     print("Running SVM on data - predict %s :" % receptor)
-    clf = SVC(class_weight='balanced', kernel='poly')
+    clf = SVC(class_weight='balanced', kernel='poly', degree=2)
     clf.fit(X_train, Y_train)
 
     pred_test = clf.predict(X_test)
