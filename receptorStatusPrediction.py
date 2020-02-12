@@ -380,7 +380,7 @@ def classify_triple_negative(df, print_wrong=False):
 
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, train_idx)
 
-    sm = SMOTE(sampling_strategy='auto', k_neighbors=2, random_state=999)
+    sm = SMOTE(sampling_strategy='auto', k_neighbors=1, random_state=999)
     X_train, Y_train = sm.fit_resample(X_train, Y_train)
 
     pred_test_her2_svm, pred_train_her2_svm, pred_test_her2_rf, \
