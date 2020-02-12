@@ -361,7 +361,7 @@ def shuffle_idx(X, Y, train_idx):
     return X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx
 
 
-def classify_triple_negative(df, print_wrong=False, run_smote=False):
+def classify_triple_negative(df, print_wrong=True, run_smote=False):
     # Create labels
     Y = np.zeros(df.shape[0])
     Y[df.pos] = 1
@@ -561,7 +561,6 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
     else:
         for i, c in zip(set(class_labels.values()), colors):
             ax.scatter(xs=X_TSNE[Y == i, 0], ys=X_TSNE[Y == i, 1], zs=X_TSNE[Y == i, 2], c=c, label=names[i])
-
         plt.legend()
     if title is not None:
         ax.set_title(title)
