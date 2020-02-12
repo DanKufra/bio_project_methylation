@@ -396,43 +396,44 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
                                                        X_test, X_train,
                                                        Y_test, Y_train,
                                                        run_PCA=True)
+    changed_by_fish_inds = np.where((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos']))[0]
+    patients_changed_by_fish = df.iloc[changed_by_fish_inds][REL_COLS]
     if print_wrong:
-        changed_by_fish_inds = np.where((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos']))[0]
-        patients_changed_by_fish = df.iloc[changed_by_fish_inds][REL_COLS]
         print("Patients whose label changed by fish update:")
         print(patients_changed_by_fish)
-        changed_by_mismatch_inds = np.where((df['pos'] == 1) & (((df['er_ihc'] == 1) & (df['pr_ihc'] == -1)) |
-                                                                ((df['er_ihc'] == -1) & (df['pr_ihc'] == 1))) &
-                                            (df['her2_ihc_and_fish'] == -1))[0]
+    changed_by_mismatch_inds = np.where((df['pos'] == 1) & (((df['er_ihc'] == 1) & (df['pr_ihc'] == -1)) |
+                                                            ((df['er_ihc'] == -1) & (df['pr_ihc'] == 1))) &
+                                        (df['her2_ihc_and_fish'] == -1))[0]
+    if print_wrong:
         print("Patients whose er_ihc mismatches pr_ihc and changes label:")
-        patients_changed_by_mismatch = df.iloc[changed_by_mismatch_inds][REL_COLS]
+    patients_changed_by_mismatch = df.iloc[changed_by_mismatch_inds][REL_COLS]
 
-        ihc_mismatch_inds = np.where(((df['her2_ihc'] != df['her2_ihc_level']) &
-                                                         (df['her2_ihc_level'] != -2) &
-                                                         ((df['her2_fish'] == -2) | (df['her2_fish'] == 0))))[0]
-        patients_with_ihc_level_diff = df.iloc[ihc_mismatch_inds][REL_COLS]
-
+    ihc_mismatch_inds = np.where(((df['her2_ihc'] != df['her2_ihc_level']) &
+                                                     (df['her2_ihc_level'] != -2) &
+                                                     ((df['her2_fish'] == -2) | (df['her2_fish'] == 0))))[0]
+    patients_with_ihc_level_diff = df.iloc[ihc_mismatch_inds][REL_COLS]
+    if print_wrong:
         print("Patients whose IHC level mismatches status (and no fish used):")
         print(patients_with_ihc_level_diff)
 
-        svm_test_wrong_inds = shuf_test_idx[np.where(pred_test_her2_svm != Y_test)]
-        svm_train_wrong_inds = shuf_train_idx[np.where(pred_train_her2_svm != Y_train)]
-        rf_test_wrong_inds = shuf_test_idx[np.where(pred_test_her2_rf != Y_test)]
-        rf_train_wrong_inds = shuf_train_idx[np.where(pred_train_her2_rf != Y_train)]
+    svm_test_wrong_inds = shuf_test_idx[np.where(pred_test_her2_svm != Y_test)]
+    svm_train_wrong_inds = shuf_train_idx[np.where(pred_train_her2_svm != Y_train)]
+    rf_test_wrong_inds = shuf_test_idx[np.where(pred_test_her2_rf != Y_test)]
+    rf_train_wrong_inds = shuf_train_idx[np.where(pred_train_her2_rf != Y_train)]
 
-        patients_wrong_test_svm = df.iloc[svm_test_wrong_inds][REL_COLS]
-        patients_wrong_train_svm = df.iloc[svm_train_wrong_inds][REL_COLS]
+    patients_wrong_test_svm = df.iloc[svm_test_wrong_inds][REL_COLS]
+    patients_wrong_train_svm = df.iloc[svm_train_wrong_inds][REL_COLS]
 
-        patients_wrong_test_rf = df.iloc[rf_test_wrong_inds][REL_COLS]
-        patients_wrong_train_rf = df.iloc[rf_train_wrong_inds][REL_COLS]
+    patients_wrong_test_rf = df.iloc[rf_test_wrong_inds][REL_COLS]
+    patients_wrong_train_rf = df.iloc[rf_train_wrong_inds][REL_COLS]
 
-        patient_name_index = 'patient_name'
-        patients_wrong_test_rf.index.name = patient_name_index
-        patients_wrong_train_rf.index.name = patient_name_index
-        patients_wrong_test_svm.index.name = patient_name_index
-        patients_wrong_train_svm.index.name = patient_name_index
-        patients_changed_by_fish.index.name = patient_name_index
-
+    patient_name_index = 'patient_name'
+    patients_wrong_test_rf.index.name = patient_name_index
+    patients_wrong_train_rf.index.name = patient_name_index
+    patients_wrong_test_svm.index.name = patient_name_index
+    patients_wrong_train_svm.index.name = patient_name_index
+    patients_changed_by_fish.index.name = patient_name_index
+    if print_wrong:
         print("Patients changed by fish that we misclassified - svm")
         print(patients_wrong_train_svm.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
         print(patients_wrong_test_svm.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
@@ -441,13 +442,15 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
         print(patients_wrong_train_rf.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
         print(patients_wrong_test_rf.join(patients_changed_by_fish, lsuffix='_new', how='inner'))
 
-        import pdb
-        pdb.set_trace()
+    import pdb
+    pdb.set_trace()
 
     incorrect_ind_mask = pred_test_her2_rf != Y_test
+    incorrect_susp_mask = np.zeros_like(incorrect_ind_mask)
+    incorrect_susp_mask[np.intersect1d(tmp, shuf_test_idx, return_indices=True)[2]] = 1
 
     plot_tsne(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000,
-              incorrect=incorrect_ind_mask, title='Triple Negative TSNE')
+              incorrect=incorrect_ind_mask, incorrect_suspicious=incorrect_susp_mask, title='Triple Negative TSNE')
 
     return svm_stats, rf_stats
 
@@ -524,7 +527,7 @@ def classify_multiclass(df):
     plot_tsne(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000, incorrect=incorrect_ind_mask)
 
 
-def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40, n_iter=300, incorrect=None, title=None):
+def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40, n_iter=300, incorrect=None, incorrect_susp=None, title=None):
     pca = PCA(n_components=pca_dim)
     X_PCA = pca.fit_transform(X)
     df_tsne_cols = ['x', 'y']
@@ -549,6 +552,8 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
             df_tsne = pd.DataFrame(X_TSNE, columns=df_tsne_cols)
             df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
             df_tsne['error'] = incorrect
+            if incorrect_susp is not None:
+                df_tsne['error'][np.where(incorrect_susp)] = 2
             fig = plt.figure(figsize=(16, 10))
             ax = fig.subplots()
             sns.scatterplot(
