@@ -537,7 +537,8 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
             df_tsne = pd.DataFrame(X_TSNE, columns=df_tsne_cols)
             df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
             df_tsne['error'] = incorrect
-            ax = plt.figure(figsize=(16, 10))
+            fig = plt.figure(figsize=(16, 10))
+            ax = fig.subplots()
             sns.scatterplot(
                 x="x", y="y",
                 hue="label",
