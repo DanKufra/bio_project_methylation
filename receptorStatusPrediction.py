@@ -348,10 +348,11 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
     return pred_test, pred_train, pred_test_rf, pred_train_rf, svm_stats, rf_stats
 
 
-def shuffle_idx(X, Y, train_idx):
-    train_idx[np.random.choice(np.arange(0, Y.shape[0])[np.logical_not(train_idx)],
-                               np.round(0.75 * Y.shape[0] - train_idx.sum()).astype(np.uint32))] = True
-
+def shuffle_idx(X, Y, test_idx=None):
+    if test_idx is not None:
+        train_idx = np.zeros_like(test_idx)
+        num_choose = np.round(0.75 * Y.shape[0] + test_idx.sum()).astype(np.uint32)
+        train_idx[np.random.choice(np.arange(0, Y.shape[0])[np.logical_not(test_idx)], num_choose)] = True
     shuf_test_idx = np.random.permutation(np.where(~train_idx)[0])
     shuf_train_idx = np.random.permutation(np.where(train_idx)[0])
     Y_test = Y[shuf_test_idx]
@@ -376,11 +377,11 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
     2. Observations where IHC level and IHC status did not match
     """
 
-    train_idx = (df['neg_pre_fish'] == df['neg']) & \
+    test_idx = (df['neg_pre_fish'] == df['neg']) & \
                 (df['pos_pre_fish'] == df['pos'])
-    # train_idx = train_idx & ((df['her2_ihc'] == df['her2_ihc_level']) &
-    #                          (df['her2_ihc_level'] != -2) &
-    #                          ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
+    test_idx = test_idx & ((df['her2_ihc'] == df['her2_ihc_level']) &
+                             (df['her2_ihc_level'] != -2) &
+                             ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
 
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, train_idx)
 
@@ -453,14 +454,14 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
 def classify_receptor(df, receptor, print_wrong=False):
     X = df[df.columns[['cg' in col for col in df.columns]]].values
 
-    train_idx = np.zeros(df.shape[0], dtype=np.bool)
-    train_idx[np.random.choice(np.arange(df.shape[0]), int(df.shape[0] * 0.8))] = True
+    # train_idx = np.zeros(df.shape[0], dtype=np.bool)
+    # train_idx[np.random.choice(np.arange(df.shape[0]), int(df.shape[0] * 0.8))] = True
 
     # ER
     Y = np.zeros(df.shape[0])
     Y[df[receptor] == 1] = 1
 
-    X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, train_idx)
+    X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y)
 
     pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf, svm_stats, rf_stats = classify(receptor, X_test, X_train, Y_test, Y_train)
 
@@ -508,10 +509,10 @@ def classify_multiclass(df):
     Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
     X = df[df.columns[['cg' in col for col in df.columns]]].values
 
-    train_idx = np.zeros(df.shape[0], dtype=np.bool)
-    train_idx[np.random.choice(np.arange(df.shape[0]), int(df.shape[0] * 0.8))] = True
+    # train_idx = np.zeros(df.shape[0], dtype=np.bool)
+    # train_idx[np.random.choice(np.arange(df.shape[0]), int(df.shape[0] * 0.8))] = True
 
-    X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, train_idx)
+    X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y)
     pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf = classify('multiclass', X_test, X_train, Y_test, Y_train,
                                                                           multiclass=True, class_names=RECEPTOR_MULTICLASS_NAMES_REDUCED)
 
