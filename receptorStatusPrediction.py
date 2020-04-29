@@ -1304,7 +1304,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     return net, accuracy_stats
 
 
-def run_nn(df, num_epochs=1, batch_size=8,
+def run_nn(df, num_epochs=40, batch_size=8,
            hidden_dim=64, num_layers=2, seed=666):
     if seed:
         np.random.seed(seed)
@@ -1329,6 +1329,7 @@ def run_nn(df, num_epochs=1, batch_size=8,
                                                          random_data=alg_type == 'FC_random',
                                                          do_conv=alg_type in ['Conv', 'Conv_Sep'],
                                                          do_sep=(alg_type == 'Conv_Sep'), alg=alg_type)
+                torch.save(net.state_dict(), './%s_net'%alg_type)
                 series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
                                     'TPR': accuracy_stats['test_tpr'][0], 'TNR': accuracy_stats['test_tnr'][0],
                                     'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Luminal A'})
