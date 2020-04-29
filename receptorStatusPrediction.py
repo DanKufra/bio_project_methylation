@@ -1105,6 +1105,8 @@ class ClassifierDataset(Dataset):
         self.conv2d = conv2d
         if self.num_sites != X_data.shape[1]:
             self.site_inds = np.random.randint(0, self.X_data.shape[1], self.num_sites)
+            # self.site_inds = np.arange(np.random.randint(0, self.X_data.shape[1] - self.num_sites, 1))
+            # pass
         else:
             self.site_inds = np.arange(0, X_data.shape[1])
         self.random_data = random_data
@@ -1117,6 +1119,8 @@ class ClassifierDataset(Dataset):
                 return self.X_data[index], self.y_data[index]
             else:
                 if self.random_data:
+                    # rand_start = np.random.randint(0, self.X_data.shape[1] - self.num_sites, 1)
+                    # self.site_inds = np.arange(rand_start, rand_start + self.num_sites)
                     return np.reshape(np.take_along_axis(self.X_data[index], self.site_inds, axis=0), (1, -1)), self.y_data[index]
                 else:
                     # site_ind = np.random.randint(0, self.X_data[index].shape[0] - self.num_sites)
@@ -1312,13 +1316,10 @@ def run_nn(df, num_epochs=20, batch_size=8,
     print(np.unique(Y_val, return_counts=True))
     print(np.unique(Y_test, return_counts=True))
     stats_df = pd.DataFrame(columns=['Algorithm', 'Learning_Rate', 'Site_amount',
-                                     'Luminal_A_TPR', 'Luminal_A_TNR', 'Luminal_A_ACC',
-                                     'Luminal_B_TPR', 'Luminal_B_TNR', 'Luminal_B_ACC',
-                                     'HER2_Overexpression_TPR', 'HER2_Overexpression_TNR', 'HER2_Overexpression_ACC',
-                                     'Triple_Negative_TPR', 'Triple_Negative_TNR', 'Triple_Negative_ACC'])
-    for alg_type in ['FC_random', 'FC_consecutive', 'Conv', 'Conv_Sep']:
+                                     'TPR', 'TNR', 'ACCURACY', 'SubType'])
+    for alg_type in ['Conv', 'Conv_Sep', 'FC_consecutive', 'FC_random']:
         for data_amount in [1000, 10000, 50000, 150000, X_train.shape[1]]:
-            if alg_type in ['Conv', 'Conv_Sep'] and data_amount != -1:
+            if alg_type in ['Conv', 'Conv_Sep'] and data_amount != X_train.shape[1]:
                 continue
             for lr in [1e-6, 1e-5, 5e-5, 1e-4]:
                 net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
