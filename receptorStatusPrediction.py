@@ -1346,13 +1346,13 @@ def run_nn(df, num_epochs=40, batch_size=8,
                                     'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Triple Negative'})
                 stats_df = stats_df.append(series, ignore_index=True)
 
+    import pdb
+    pdb.set_trace()
     # plot TPRs based on site amount
     g = sns.relplot(x="Site_amount", y="TPR", col="Algorithm", hue="SubType",  markers=True, kind="line", data=stats_df[stats_df.Learning_Rate == 0.0001])
     g.fig.suptitle("TPR per Subtype")
     g.savefig('./tpr_subtype_plot_nn.png')
     # plt.show()
-    import pdb
-    pdb.set_trace()
 
 
 
