@@ -107,6 +107,7 @@ class ClassifyNet2D(nn.Module):
                 self.layers.append(nn.MaxPool2d(2))
         for i in range(num_layers):
             if i == 0:
+
                 self.layers.append(nn.Linear(414*219*8, hidden_dim))
             elif i == num_layers-1:
                 self.layers.append(nn.Linear(hidden_dim, num_classes))
@@ -119,7 +120,9 @@ class ClassifyNet2D(nn.Module):
             # pdb.set_trace()
             if i < len(self.layers) - 1:
                 if i == self.num_conv_layers * 2 - 1 and self.num_conv_layers > 0:
-                    x = x.view((-1, 414*219*16))
+                    # import pdb
+                    # pdb.set_trace()
+                    x = x.view((-1, 414*219*8))
                 x = F.relu(layer(x))
             else:
                 x = layer(x)
