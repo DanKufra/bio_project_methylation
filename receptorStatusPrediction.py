@@ -1334,7 +1334,7 @@ def run_nn(df, num_epochs=100, batch_size=8,
     stats_df = pd.DataFrame(columns=['Algorithm', 'Learning_Rate', 'Site_amount',
                                      'TPR', 'FPR', 'Accuracy', 'SubType'])
     # for alg_type in ['Conv_Sep', 'Conv']:#, 'FC_consecutive', 'FC_random']:
-    for alg_type in ['FC_consecutive', 'FC_rando', 'Conv_Sep', 'Conv']:
+    for alg_type in ['FC_consecutive', 'FC_random', 'Conv_Sep', 'Conv']:
         for data_amount in [1000, 10000, 50000, 150000, X_train.shape[1]]:
             if alg_type in ['Conv', 'Conv_Sep'] and data_amount != X_train.shape[1]:
                 continue
