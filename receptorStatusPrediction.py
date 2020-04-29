@@ -526,7 +526,7 @@ def shuffle_idx(X, Y, test_idx=None, do_val_data=False):
             val_indices = np.zeros_like(Y)
         for unique_label in np.unique(Y):
             this_label = Y == unique_label
-            num_choose = np.round(0.70 * (this_label).sum()).astype(np.uint32)
+            num_choose = np.round(0.80 * (this_label).sum()).astype(np.uint32)
             indices = np.random.choice(np.where(this_label)[0], num_choose, replace=False)
             if do_val_data:
                 num_choose = np.round(0.1 * (this_label).sum()).astype(np.uint32)
@@ -1298,7 +1298,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     return net, accuracy_stats
 
 
-def run_nn(df, num_epochs=20, batch_size=8,
+def run_nn(df, num_epochs=40, batch_size=8,
            hidden_dim=64, num_layers=2,
            num_sites=-1, seed=666):
     if seed:
