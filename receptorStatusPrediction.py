@@ -1134,7 +1134,7 @@ class ClassifierDataset(Dataset):
 
 
 def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers, batch_size, num_epochs, lr, num_sites,
-                       random_data, do_conv, do_sep):
+                       random_data, do_conv, do_sep, alg):
 
     print(f"Training:\n conv2d: {do_conv}, sep: {do_sep}, sites: {num_sites}, lr: {lr}, random_data: {random_data}")
 
@@ -1175,7 +1175,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     # print(class_weights)
 
     class_weights_all = class_weights[target_list]
-
+    print(class_weights)
     weighted_sampler = WeightedRandomSampler(
         weights=class_weights_all,
         num_samples=len(class_weights_all),
@@ -1278,6 +1278,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
         test_epoch_acc = np.zeros(0)
         net.eval()
         count_test = 0
+        preds = []
         for X_test_batch, y_test_batch in test_loader:
             count_test += 1
             y_test_pred = torch.reshape(net(X_test_batch), (-1, 4))
@@ -1288,7 +1289,9 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
             test_epoch_acc += np.array(test_acc.item())
             test_epoch_class_tpr += np.array([i.item() for i in test_class_tpr])
             test_epoch_class_tnr += np.array([i.item() for i in test_class_tnr])
-
+            y_pred_softmax = torch.log_softmax(y_test_pred, dim=1)
+            _, y_pred_tags = torch.max(y_pred_softmax, dim=1)
+            preds.append(y_pred_tags.item())
         accuracy_stats['test_tpr'] = test_epoch_class_tpr / count_test
         accuracy_stats['test_tnr'] = test_epoch_class_tnr / count_test
         accuracy_stats['test_acc'] = test_epoch_acc / count_test
@@ -1296,20 +1299,16 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     print(f'Test Loss: {test_epoch_loss / len(test_loader):.5f} | '
           f'Test Class TPR: {np.round(test_epoch_class_tpr / count_test, decimals=3)}| '
           )
+    print_stats(alg, 'test', 'multiclass', preds, Y_test, multiclass=True, cmap=plt.cm.Blues,
+                classes=RECEPTOR_MULTICLASS_NAMES_REDUCED, normalize=True, dump_visualization=True)
     return net, accuracy_stats
 
 
-def run_nn(df, num_epochs=40, batch_size=8,
+def run_nn(df, num_epochs=1, batch_size=8,
            hidden_dim=64, num_layers=2, seed=666):
     if seed:
         np.random.seed(seed)
     Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
-
-    # if num_sites == -1:
-    #     random_sites = np.arange(df[df.columns[['cg' in col for col in df.columns]]].values.shape[1])
-    #     num_sites = len(random_sites)
-    # else:
-    #     random_sites = np.sort(np.random.choice(df[df.columns[['cg' in col for col in df.columns]]].values.shape[1], num_sites, replace=False))
 
     X = df[df.columns[['cg' in col for col in df.columns]]].values.astype(np.float32) / 1000.0
     X_train, Y_train, X_test, Y_test, X_val, Y_val, _, _ = shuffle_idx(X, Y, do_val_data=True)
@@ -1319,7 +1318,7 @@ def run_nn(df, num_epochs=40, batch_size=8,
     print(np.unique(Y_test, return_counts=True))
     stats_df = pd.DataFrame(columns=['Algorithm', 'Learning_Rate', 'Site_amount',
                                      'TPR', 'TNR', 'Accuracy', 'SubType'])
-    for alg_type in ['Conv', 'Conv_Sep']:#, 'FC_consecutive', 'FC_random']:
+    for alg_type in ['Conv_Sep', 'Conv']:#, 'FC_consecutive', 'FC_random']:
         for data_amount in [1000, 10000, 50000, 150000, X_train.shape[1]]:
             if alg_type in ['Conv', 'Conv_Sep'] and data_amount != X_train.shape[1]:
                 continue
@@ -1329,7 +1328,7 @@ def run_nn(df, num_epochs=40, batch_size=8,
                                                          batch_size, num_epochs, lr=lr, num_sites=data_amount,
                                                          random_data=alg_type == 'FC_random',
                                                          do_conv=alg_type in ['Conv', 'Conv_Sep'],
-                                                         do_sep=(alg_type == 'Conv_Sep'))
+                                                         do_sep=(alg_type == 'Conv_Sep'), alg=alg_type)
                 series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
                                     'TPR': accuracy_stats['test_tpr'][0], 'TNR': accuracy_stats['test_tnr'][0],
                                     'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Luminal A'})
