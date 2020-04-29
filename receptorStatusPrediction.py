@@ -1083,20 +1083,19 @@ def multi_acc(y_pred, y_test):
     correct_pred = (y_pred_tags == y_test).float()
     acc = correct_pred.sum() / len(y_test)
 
-    class_tpr = []
-    class_tnr = []
+    class_true_positive = []
+    class_false_positive = []
+    class_count = []
     for i in range(4):
         curr_class_inds = np.where(y_test == i)
+        class_count.append(torch.sum(y_test == i))
         if len(curr_class_inds[0]) == 0:
-            class_tpr.append(torch.tensor(0))
-            class_tnr.append(torch.tensor(0))
+            class_true_positive.append(torch.tensor(0))
+            class_false_positive.append(torch.tensor(0))
             continue
-        class_tpr.append(torch.sum((y_test == i) & (y_pred_tags == i)) / torch.sum(y_test == i))
-        if torch.sum(y_test != i) == 0:
-            class_tnr.append(torch.tensor(0))
-        else:
-            class_tnr.append(torch.sum((y_test != i) & (y_pred_tags != i)) / torch.sum(y_test != i))
-    return class_tpr, class_tnr, acc, _#confusion_matrix(y_test, y_pred_tags)
+        class_true_positive.append(torch.sum((y_test == i) & (y_pred_tags == i)))
+        class_false_positive.append(torch.sum((y_test != i) & (y_pred_tags == i)))
+    return class_true_positive, class_false_positive, class_count, acc
 
 
 class ClassifierDataset(Dataset):
@@ -1216,8 +1215,9 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     for e in tqdm(range(1, num_epochs + 1)):
         # TRAINING
         train_epoch_loss = 0
-        train_epoch_class_tpr = np.zeros(4)
-        train_epoch_class_tnr = np.zeros(4)
+        train_epoch_class_tp = np.zeros(4)
+        train_epoch_class_fp = np.zeros(4)
+        train_epoch_class_count = np.zeros(4)
         train_epoch_acc = np.zeros(0)
         net.train()
         count = 0
@@ -1227,83 +1227,99 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
             optimizer.zero_grad()
             y_train_pred = net(X_train_batch).squeeze()
             train_loss = criterion(y_train_pred, y_train_batch)
-            train_class_tpr, train_class_tnr, train_acc, train_cm = multi_acc(y_train_pred, y_train_batch)
-
+            train_class_tp, train_class_fp, train_class_count, train_acc = multi_acc(y_train_pred, y_train_batch)
             train_loss.backward()
             optimizer.step()
 
             train_epoch_loss += train_loss.item()
             train_epoch_acc += np.array(train_acc.item())
-            train_epoch_class_tpr += np.array([i.item() for i in train_class_tpr])
-            train_epoch_class_tnr += np.array([i.item() for i in train_class_tnr])
+            train_epoch_class_tp += np.array([i.item() for i in train_class_tp])
+            train_epoch_class_fp += np.array([i.item() for i in train_class_fp])
+            train_epoch_class_count += np.array([i.item() for i in train_class_count])
         # VALIDATION
         with torch.no_grad():
             val_epoch_loss = 0
-            val_epoch_class_tnr = np.zeros(4)
-            val_epoch_class_tpr = np.zeros(4)
+            val_epoch_class_tp = np.zeros(4)
+            val_epoch_class_fp = np.zeros(4)
+            val_epoch_class_count = np.zeros(4)
             val_epoch_acc = np.zeros(0)
             net.eval()
             for X_val_batch, y_val_batch in val_loader:
                 count_val += 1
                 y_val_pred = torch.reshape(net(X_val_batch), (-1, 4))
                 val_loss = criterion(y_val_pred, y_val_batch)
-                val_class_tpr, val_class_tnr, val_acc, val_cm = multi_acc(y_val_pred, y_val_batch)
+                val_class_tp, val_class_fp, val_class_count, val_acc = multi_acc(y_val_pred, y_val_batch)
 
                 val_epoch_loss += val_loss.item()
                 val_epoch_acc += np.array(val_acc.item())
-                val_epoch_class_tpr += np.array([i.item() for i in val_class_tpr])
-                val_epoch_class_tnr += np.array([i.item() for i in val_class_tnr])
+                val_epoch_class_tp += np.array([i.item() for i in val_class_tp])
+                val_epoch_class_fp += np.array([i.item() for i in val_class_fp])
+                val_epoch_class_count += np.array([i.item() for i in val_class_count])
+
+        train_sum_not_idx = np.zeros(4)
+        val_sum_not_idx = np.zeros(4)
+        for i in range(4):
+            val_sum_not_idx[i] = np.sum([val_epoch_class_count[j] for j in np.arange(4) if j != i])
+            train_sum_not_idx[i] = np.sum([train_epoch_class_count[j] for j in np.arange(4) if j != i])
 
         loss_stats['train'].append(train_epoch_loss / len(train_loader))
         loss_stats['val'].append(val_epoch_loss / len(val_loader))
-        accuracy_stats['train_class_TPR'] = train_epoch_class_tpr / count
-        accuracy_stats['val_class_TPR'] = val_epoch_class_tpr / count_val
-        accuracy_stats['train_class_TNR'] = train_epoch_class_tnr / count
-        accuracy_stats['val_class_TNR'] = val_epoch_class_tnr / count_val
+        accuracy_stats['train_class_TPR'] = train_epoch_class_tp / train_epoch_class_count
+        accuracy_stats['val_class_TPR'] = val_epoch_class_tp / val_epoch_class_count
+        accuracy_stats['train_class_FPR'] = train_epoch_class_fp / train_sum_not_idx
+        accuracy_stats['val_class_FPR'] = val_epoch_class_fp / val_sum_not_idx
         accuracy_stats['train_acc'] = train_epoch_acc / count
         accuracy_stats['val_acc'] = val_epoch_acc / count_val
         scheduler.step(e)
         tqdm.write(f'Epoch {e + 0:03}: | Train Loss: {train_epoch_loss / len(train_loader):.5f} | '
                    f'Val Loss: {val_epoch_loss / len(val_loader):.5f} | '
-                   f'Train Class TPR: {np.round(train_epoch_class_tpr / count, decimals=3)}| '
-                   f'Val Class TPR: {np.round(val_epoch_class_tpr / count_val, decimals=3)}| '
+                   f'Train Class TPR: {np.round(train_epoch_class_tp / train_epoch_class_count, decimals=3)}| '
+                   f'Val Class TPR: {np.round(val_epoch_class_tp / val_epoch_class_count, decimals=3)}| '
                    )
 
     # TEST
     with torch.no_grad():
         test_epoch_loss = 0
-        test_epoch_class_tpr = np.zeros(4)
-        test_epoch_class_tnr = np.zeros(4)
+        test_epoch_class_tp = np.zeros(4)
+        test_epoch_class_fp = np.zeros(4)
+        test_epoch_class_count = np.zeros(4)
         test_epoch_acc = np.zeros(0)
         net.eval()
         count_test = 0
         preds = []
+        lbls = []
         for X_test_batch, y_test_batch in test_loader:
             count_test += 1
             y_test_pred = torch.reshape(net(X_test_batch), (-1, 4))
             test_loss = criterion(y_test_pred, y_test_batch)
-            test_class_tpr, test_class_tnr, test_acc, test_cm = multi_acc(y_test_pred, y_test_batch)
+            test_class_tp, test_class_fp, test_class_count, test_acc = multi_acc(y_test_pred, y_test_batch)
 
             test_epoch_loss += test_loss.item()
             test_epoch_acc += np.array(test_acc.item())
-            test_epoch_class_tpr += np.array([i.item() for i in test_class_tpr])
-            test_epoch_class_tnr += np.array([i.item() for i in test_class_tnr])
+            test_epoch_class_tp += np.array([i.item() for i in test_class_tp])
+            test_epoch_class_fp += np.array([i.item() for i in test_class_fp])
+            test_epoch_class_count += np.array([i.item() for i in test_class_count])
+
             y_pred_softmax = torch.log_softmax(y_test_pred, dim=1)
             _, y_pred_tags = torch.max(y_pred_softmax, dim=1)
             preds.append(y_pred_tags.item())
-        accuracy_stats['test_tpr'] = test_epoch_class_tpr / count_test
-        accuracy_stats['test_tnr'] = test_epoch_class_tnr / count_test
-        accuracy_stats['test_acc'] = test_epoch_acc / count_test
+            lbls.append(y_test_batch.item())
 
+        test_sum_not_idx = np.zeros(4)
+        for i in range(4):
+            test_sum_not_idx[i] = np.sum([test_epoch_class_count[j] for j in np.arange(4) if j != i])
+
+        accuracy_stats['test_tpr'] = test_epoch_class_tp / test_epoch_class_count
+        accuracy_stats['test_fpr'] = test_epoch_class_fp / test_sum_not_idx
+        accuracy_stats['test_acc'] = test_epoch_acc / count_test
     print(f'Test Loss: {test_epoch_loss / len(test_loader):.5f} | '
-          f'Test Class TPR: {np.round(test_epoch_class_tpr / count_test, decimals=3)}| '
+          f'Test Class TPR: {np.round(test_epoch_class_tp / test_epoch_class_count, decimals=3)}| '
           )
-    print_stats('%s_%d' % (alg , lr), 'test', 'multiclass', preds, Y_test, multiclass=True, cmap=plt.cm.Blues,
-                classes=RECEPTOR_MULTICLASS_NAMES_REDUCED, normalize=True, dump_visualization=True)
+    print_stats('%s_%f_%s' % (alg , lr, num_sites), 'test', 'multiclass', preds, lbls, multiclass=True, cmap=plt.cm.Blues, classes=RECEPTOR_MULTICLASS_NAMES_REDUCED, normalize=True, dump_visualization=True)
     return net, accuracy_stats
 
 
-def run_nn(df, num_epochs=40, batch_size=8,
+def run_nn(df, num_epochs=100, batch_size=8,
            hidden_dim=64, num_layers=2, seed=666):
     if seed:
         np.random.seed(seed)
@@ -1316,32 +1332,33 @@ def run_nn(df, num_epochs=40, batch_size=8,
     print(np.unique(Y_val, return_counts=True))
     print(np.unique(Y_test, return_counts=True))
     stats_df = pd.DataFrame(columns=['Algorithm', 'Learning_Rate', 'Site_amount',
-                                     'TPR', 'TNR', 'Accuracy', 'SubType'])
-    for alg_type in ['Conv_Sep', 'Conv']:#, 'FC_consecutive', 'FC_random']:
+                                     'TPR', 'FPR', 'Accuracy', 'SubType'])
+    # for alg_type in ['Conv_Sep', 'Conv']:#, 'FC_consecutive', 'FC_random']:
+    for alg_type in ['FC_consecutive', 'FC_rando', 'Conv_Sep', 'Conv']:
         for data_amount in [1000, 10000, 50000, 150000, X_train.shape[1]]:
             if alg_type in ['Conv', 'Conv_Sep'] and data_amount != X_train.shape[1]:
                 continue
-            for lr in [1e-5, 5e-5, 1e-4]:
+            for lr in [1e-6, 1e-5, 1e-4]:
                 net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
                                                          batch_size, num_epochs, lr=lr, num_sites=data_amount,
                                                          random_data=alg_type == 'FC_random',
                                                          do_conv=alg_type in ['Conv', 'Conv_Sep'],
                                                          do_sep=(alg_type == 'Conv_Sep'), alg=alg_type)
-                torch.save(net.state_dict(), './%s_net'%alg_type)
+                torch.save(net.state_dict(), './%s_%f_%dnet'%(alg_type, lr, data_amount))
                 series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
-                                    'TPR': accuracy_stats['test_tpr'][0], 'TNR': accuracy_stats['test_tnr'][0],
+                                    'TPR': accuracy_stats['test_tpr'][0], 'FPR': accuracy_stats['test_fpr'][0],
                                     'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Luminal A'})
                 stats_df = stats_df.append(series, ignore_index=True)
                 series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
-                                    'TPR': accuracy_stats['test_tpr'][1], 'TNR': accuracy_stats['test_tnr'][1],
+                                    'TPR': accuracy_stats['test_tpr'][1], 'FPR': accuracy_stats['test_fpr'][1],
                                     'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Luminal B'})
                 stats_df = stats_df.append(series, ignore_index=True)
                 series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
-                                    'TPR': accuracy_stats['test_tpr'][2], 'TNR': accuracy_stats['test_tnr'][2],
+                                    'TPR': accuracy_stats['test_tpr'][2], 'FPR': accuracy_stats['test_fpr'][2],
                                     'Accuracy': accuracy_stats['test_acc'], 'SubType': 'HER2 OverExpression'})
                 stats_df = stats_df.append(series, ignore_index=True)
                 series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
-                                    'TPR': accuracy_stats['test_tpr'][3], 'TNR': accuracy_stats['test_tnr'][3],
+                                    'TPR': accuracy_stats['test_tpr'][3], 'FPR': accuracy_stats['test_fpr'][3],
                                     'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Triple Negative'})
                 stats_df = stats_df.append(series, ignore_index=True)
 
