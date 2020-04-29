@@ -1298,7 +1298,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     print(f'Test Loss: {test_epoch_loss / len(test_loader):.5f} | '
           f'Test Class TPR: {np.round(test_epoch_class_tpr / count_test, decimals=3)}| '
           )
-    print_stats(alg, 'test', 'multiclass', preds, Y_test, multiclass=True, cmap=plt.cm.Blues,
+    print_stats('%s_%d' % (alg , lr), 'test', 'multiclass', preds, Y_test, multiclass=True, cmap=plt.cm.Blues,
                 classes=RECEPTOR_MULTICLASS_NAMES_REDUCED, normalize=True, dump_visualization=True)
     return net, accuracy_stats
 
