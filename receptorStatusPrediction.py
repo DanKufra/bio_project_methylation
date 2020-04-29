@@ -1236,7 +1236,6 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
             train_epoch_acc += np.array(train_acc.item())
             train_epoch_class_tpr += np.array([i.item() for i in train_class_tpr])
             train_epoch_class_tnr += np.array([i.item() for i in train_class_tnr])
-
         # VALIDATION
         with torch.no_grad():
             val_epoch_loss = 0
@@ -1266,7 +1265,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
         scheduler.step(e)
         tqdm.write(f'Epoch {e + 0:03}: | Train Loss: {train_epoch_loss / len(train_loader):.5f} | '
                    f'Val Loss: {val_epoch_loss / len(val_loader):.5f} | '
-                   f'Train Class TPR: {np.round(train_epoch_class_tpr / count)}| '
+                   f'Train Class TPR: {np.round(train_epoch_class_tpr / count, decimals=3)}| '
                    f'Val Class TPR: {np.round(val_epoch_class_tpr / count_val, decimals=3)}| '
                    )
 
