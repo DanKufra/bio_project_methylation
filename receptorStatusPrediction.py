@@ -12,7 +12,165 @@ import argparse as argparse
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
+
 import seaborn as sns
+import os
+
+np.random.seed(666)
+
+
+class ClassifyNet2DSep(nn.Module):
+    def __init__(self, x_feature_shape, num_classes=4):
+        super(ClassifyNet2DSep, self).__init__()
+        self.num_filters = 8
+        self.w11 = nn.Conv2d(in_channels=1, out_channels=self.num_filters, kernel_size=(int(1), x_feature_shape[1]), padding=(int(1) // 2))
+        self.w13 = nn.Conv2d(in_channels=1, out_channels=self.num_filters, kernel_size=(int(3), x_feature_shape[1]), padding=(int(3) // 2))
+        self.w15 = nn.Conv2d(in_channels=1, out_channels=self.num_filters, kernel_size=(int(5), x_feature_shape[1]), padding=(int(5) // 2))
+        self.w17 = nn.Conv2d(in_channels=1, out_channels=self.num_filters, kernel_size=(int(7), x_feature_shape[1]), padding=(int(7) // 2))
+
+        self.w21 = nn.Conv2d(in_channels=1, out_channels=self.num_filters, kernel_size=(x_feature_shape[0], int(1)), padding=(int(1) // 2))
+        self.w23 = nn.Conv2d(in_channels=1, out_channels=self.num_filters, kernel_size=(x_feature_shape[0], int(3)), padding=(int(3) // 2))
+        self.w25 = nn.Conv2d(in_channels=1, out_channels=self.num_filters, kernel_size=(x_feature_shape[0], int(5)), padding=(int(5) // 2))
+        self.w27 = nn.Conv2d(in_channels=1, out_channels=self.num_filters, kernel_size=(x_feature_shape[0], int(7)), padding=(int(7) // 2))
+
+        # self.w212 = nn.Conv2d(in_channels=8, out_channels=self.num_filters, kernel_size=(int(1), x_feature_shape[1]), padding=(int(1) // 2))
+        # self.w232 = nn.Conv2d(in_channels=8, out_channels=self.num_filters, kernel_size=(int(3), x_feature_shape[1]), padding=(int(3) // 2))
+        # self.w252 = nn.Conv2d(in_channels=8, out_channels=self.num_filters, kernel_size=(int(5), x_feature_shape[1]), padding=(int(5) // 2))
+        # self.w272 = nn.Conv2d(in_channels=8, out_channels=int(16), kernel_size=(int(7), x_feature_shape[1]), padding=(int(7) // 2))
+        #
+        # self.w112 = nn.Conv2d(in_channels=8, out_channels=self.num_filters, kernel_size=(x_feature_shape[0], int(1)), padding=(int(1) // 2))
+        # self.w132 = nn.Conv2d(in_channels=8, out_channels=self.num_filters, kernel_size=(x_feature_shape[0], int(3)), padding=(int(3) // 2))
+        # self.w152 = nn.Conv2d(in_channels=8, out_channels=self.num_filters, kernel_size=(x_feature_shape[0], int(5)), padding=(int(5) // 2))
+        # self.w172 = nn.Conv2d(in_channels=8, out_channels=self.num_filters, kernel_size=(x_feature_shape[0], int(7)), padding=(int(7) // 2))
+
+        self.fc1 = nn.Linear(self.num_filters*(1+3+5+7)*829 + self.num_filters*(1+3+5+7)*438, 512)
+        self.fc2 = nn.Linear(512, 128)
+        self.fc3 = nn.Linear(128, num_classes)
+
+    def forward(self, x):
+        # w11 = F.relu(self.w11(x)).view(-1, 829*1)
+        # w13 = F.relu(self.w13(x)).view(-1, 829*3)
+        # w15 = F.relu(self.w15(x)).view(-1, 829*5)
+        # w17 = F.relu(self.w17(x)).view(-1, 829*7)
+        # w21 = F.relu(self.w21(x)).view(-1, 438*1)
+        # w23 = F.relu(self.w23(x)).view(-1, 438*3)
+        # w25 = F.relu(self.w25(x)).view(-1, 438*5)
+        # w27 = F.relu(self.w27(x)).view(-1, 438*7)
+        # import pdb
+        # pdb.set_trace()
+
+
+        w11 = self.w11(x).view(-1, 829*1*self.num_filters)
+        w13 = self.w13(x).view(-1, 829*3*self.num_filters)
+        w15 = self.w15(x).view(-1, 829*5*self.num_filters)
+        w17 = self.w17(x).view(-1, 829*7*self.num_filters)
+        w21 = self.w21(x).view(-1, 438*1*self.num_filters)
+        w23 = self.w23(x).view(-1, 438*3*self.num_filters)
+        w25 = self.w25(x).view(-1, 438*5*self.num_filters)
+        w27 = self.w27(x).view(-1, 438*7*self.num_filters)
+
+        # w11 = self.w112(F.relu(self.w11(x))).view(-1, 1*8)
+        # w13 = self.w132(F.relu(self.w13(x))).view(-1, 3*8)
+        # w15 = self.w152(F.relu(self.w15(x))).view(-1, 5*8)
+        # w17 = self.w172(F.relu(self.w17(x))).view(-1, 7*8)
+        # w21 = self.w212(F.relu(self.w21(x))).view(-1, 1*8)
+        # w23 = self.w232(F.relu(self.w23(x))).view(-1, 3*8)
+        # w25 = self.w252(F.relu(self.w25(x))).view(-1, 5*8)
+        # w27 = self.w272(F.relu(self.w27(x))).view(-1, 7*8)
+
+        # import pdb
+        # pdb.set_trace()
+        x = torch.cat((w11, w13, w15, w17, w21, w23, w25, w27), 1)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
+
+class ClassifyNet2D(nn.Module):
+    def __init__(self, hidden_dim=128, num_layers=5, fully_connected_input=100, num_conv_layers=3, num_classes=4):
+        super(ClassifyNet2D, self).__init__()
+        self.layers = nn.ModuleList()
+        self.num_conv_layers = num_conv_layers
+        for i in range(self.num_conv_layers):
+            if i == 0:
+                self.layers.append(nn.Conv2d(in_channels=1, out_channels=int(32),
+                                             kernel_size=int(5), padding=(int(5) // 2)))
+                self.layers.append(nn.MaxPool2d(2))
+            elif i == num_conv_layers - 1:
+                self.layers.append(nn.Conv2d(in_channels=int(32), out_channels=16,
+                                             kernel_size=int(5), padding=(int(5) // 2)))
+            else:
+                self.layers.append(nn.Conv2d(in_channels=int(32), out_channels=int(32),
+                                             kernel_size=int(5), padding=(int(5) // 2)))
+                self.layers.append(nn.MaxPool2d(2))
+        for i in range(num_layers):
+            if i == 0:
+                self.layers.append(nn.Linear(414*219*16, hidden_dim))
+            elif i == num_layers-1:
+                self.layers.append(nn.Linear(hidden_dim, num_classes))
+            else:
+                self.layers.append(nn.Linear(hidden_dim, hidden_dim))
+
+    def forward(self, x):
+        for i, layer in enumerate(self.layers):
+            # import pdb
+            # pdb.set_trace()
+            if i < len(self.layers) - 1:
+                if i == self.num_conv_layers * 2 - 1 and self.num_conv_layers > 0:
+                    x = x.view((-1, 414*219*16))
+                x = F.relu(layer(x))
+            else:
+                x = layer(x)
+        return x
+
+
+class ClassifyNet(nn.Module):
+    def __init__(self, hidden_dim=128, num_layers=5, fully_connected_input=100, num_conv_layers=3, num_classes=4, num_sites=100):
+        super(ClassifyNet, self).__init__()
+        self.layers = nn.ModuleList()
+        self.num_conv_layers = num_conv_layers
+        self.fully_connected_input = fully_connected_input
+
+        self.layers.append(nn.Linear(num_sites, hidden_dim))
+        self.layers.append(nn.Linear(hidden_dim, hidden_dim))
+        self.layers.append(nn.Linear(hidden_dim, num_classes))
+
+        # define dropout layer in __init__
+        self.drop_layer = nn.Dropout(p=0.2)
+
+        # for i in range(self.num_conv_layers):
+        #     if i == 0:
+        #         self.layers.append(nn.Conv1d(in_channels=1, out_channels=int(16),
+        #                                      kernel_size=int(3), padding=(int(3) // 2)))
+        #         self.layers.append(nn.MaxPool1d(2))
+        #     elif i == num_conv_layers - 1:
+        #         self.layers.append(nn.Conv1d(in_channels=int(16), out_channels=8,
+        #                                      kernel_size=int(3), padding=(int(3) // 2)))
+        #     else:
+        #         self.layers.append(nn.Conv1d(in_channels=int(16), out_channels=int(16),
+        #                                      kernel_size=int(3), padding=(int(3) // 2)))
+        #         self.layers.append(nn.MaxPool1d(2))
+        # for i in range(num_layers):
+        #     if i == 0:
+        #         if num_conv_layers > 0:
+        #             self.layers.append(nn.Linear(self.fully_connected_input*8, hidden_dim))
+        #         else:
+        #             self.layers.append(nn.Linear(num_sites, hidden_dim))
+        #     elif i == num_layers-1:
+        #         self.layers.append(nn.Linear(hidden_dim, num_classes))
+        #     else:
+        #         self.layers.append(nn.Linear(hidden_dim, hidden_dim))
+
+    def forward(self, x):
+        for i, layer in enumerate(self.layers):
+            if i < len(self.layers) - 1:
+                x = F.relu(layer(x))
+                x = self.drop_layer(x)
+            else:
+                x = layer(x)
+        return x
 
 
 class Net(nn.Module):
@@ -160,7 +318,7 @@ RECEPTOR_MULTICLASS_NAMES_REDUCED = ['Luminal A', 'Luminal B', 'HER2-overexpress
 
 
 def print_stats(clsf, tt, receptor, preds, lbls, multiclass=False, cmap=plt.cm.Blues,
-                classes=RECEPTOR_MULTICLASS_NAMES, normalize=True):
+                classes=RECEPTOR_MULTICLASS_NAMES, normalize=True, dump_visualization=False):
     if multiclass:
         # Compute confusion matrix
         cm = confusion_matrix(lbls, preds)
@@ -199,7 +357,12 @@ def print_stats(clsf, tt, receptor, preds, lbls, multiclass=False, cmap=plt.cm.B
                         ha="center", va="center",
                         color="white" if cm[i, j] > thresh else "black")
         fig.tight_layout()
-        plt.show()
+        if dump_visualization:
+            ax.set_title(title)
+            plt.savefig(('%s.png' % title).replace(' ', '_'))
+            plt.close(fig)
+        else:
+            plt.show()
 
     else:
         # get some basic stats
@@ -217,19 +380,20 @@ def print_stats(clsf, tt, receptor, preds, lbls, multiclass=False, cmap=plt.cm.B
         return acc, tpr, tnr
 
 
-def read_data():
+def read_data(data_dir):
     print("Reading data")
     # read BRCA patients prognosis
-    df_BRCA_diagnosis = pd.read_csv('/cs/cbio/dank/BRCA_TCGA_data/BRCA.tsv', delimiter='\t')
+
+    df_BRCA_diagnosis = pd.read_csv(os.path.join(data_dir, 'BRCA.tsv'), delimiter='\t')
     df_BRCA_diagnosis.set_index('bcr_patient_barcode', inplace=True)
     df_BRCA_diagnosis.drop(['bcr_patient_barcode', 'CDE_ID:2003301'], inplace=True)
 
     # read BRCA patients matching
-    df_id_matching = pd.read_csv('/cs/cbio/dank/BRCA_TCGA_data/sample_sheet_BRCA.tsv', delimiter='\t')
+    df_id_matching = pd.read_csv(os.path.join(data_dir, 'sample_sheet_BRCA.tsv'), delimiter='\t')
 
     # read methylation data
     # df_healthy = read_data_from_tsv('/cs/cbio/tommy/TCGA/BRCA_Solid_Tissue_Normal.tsv.gz')
-    df_sick = read_data_from_tsv('/cs/cbio/dank/BRCA_TCGA_data/BRCA_Primary_Tumor.tsv.gz')
+    df_sick = read_data_from_tsv(os.path.join(data_dir, 'BRCA_Primary_Tumor.tsv.gz'))
 
     # match to methylation data
     # df_joined = df_id_matching.join(pd.concat([df_sick.T, df_healthy.T]), on='Array.Data.File', how='inner')
@@ -318,51 +482,131 @@ def fix_mismatches(df):
     return df_clinical
 
 
-def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class_names=RECEPTOR_MULTICLASS_NAMES, run_PCA=False):
+def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class_names=RECEPTOR_MULTICLASS_NAMES, run_PCA=False, dump_visualization=False):
     if run_PCA:
         print(X_train.shape)
         num_components = 64
         print("Running PCA to %d components" % num_components)
-        pca = PCA(n_components=num_components)
+        pca = PCA(n_components=num_components, random_state=666)
         X_train = pca.fit_transform(X_train)
         X_test = pca.transform(X_test)
         X_train = preprocessing.scale(X_train)
         X_test = preprocessing.scale(X_test)
 
+
     print("Running SVM on data - predict %s :" % receptor)
     # clf = SVC(class_weight='balanced', kernel='poly', degree=2)
-    clf = SVC(class_weight='balanced', kernel='linear')
+    clf = SVC(class_weight='balanced', kernel='linear', random_state=666)
     clf.fit(X_train, Y_train)
 
     pred_test = clf.predict(X_test)
     pred_train = clf.predict(X_train)
 
-    print_stats('SVM', 'train', receptor, pred_train, Y_train, multiclass, classes=class_names)
-    svm_stats = print_stats('SVM', 'test', receptor, pred_test, Y_test, multiclass, classes=class_names)
+    print_stats('SVM', 'train', receptor, pred_train, Y_train, multiclass, classes=class_names, dump_visualization=dump_visualization)
+    svm_stats = print_stats('SVM', 'test', receptor, pred_test, Y_test, multiclass, classes=class_names, dump_visualization=dump_visualization)
 
     print("Running random forest  - predict %s :" % receptor)
-    clf_rf = RandomForestClassifier(max_depth=3, n_estimators=100, class_weight='balanced')
+    clf_rf = RandomForestClassifier(max_depth=3, n_estimators=100, class_weight='balanced', random_state=666)
     clf_rf = clf_rf.fit(X_train, Y_train)
     pred_test_rf = clf_rf.predict(X_test)
     pred_train_rf = clf_rf.predict(X_train)
 
-    print_stats('Random Forest', 'train', receptor, pred_train_rf, Y_train, multiclass, classes=class_names)
-    rf_stats = print_stats('Random Forest', 'test', receptor, pred_test_rf, Y_test, multiclass, classes=class_names)
+    print_stats('Random Forest', 'train', receptor, pred_train_rf, Y_train, multiclass, classes=class_names, dump_visualization=dump_visualization)
+    rf_stats = print_stats('Random Forest', 'test', receptor, pred_test_rf, Y_test, multiclass, classes=class_names,dump_visualization=dump_visualization)
     return pred_test, pred_train, pred_test_rf, pred_train_rf, svm_stats, rf_stats
 
 
-def shuffle_idx(X, Y, test_idx=None):
-    if test_idx is not None:
+def shuffle_idx(X, Y, test_idx=None, do_val_data=False):
+    if test_idx is None:
+        train_idx = np.zeros_like(Y)
+        if do_val_data:
+            val_indices = np.zeros_like(Y)
+        for unique_label in np.unique(Y):
+            this_label = Y == unique_label
+            num_choose = np.round(0.70 * (this_label).sum()).astype(np.uint32)
+            indices = np.random.choice(np.where(this_label)[0], num_choose, replace=False)
+            if do_val_data:
+                num_choose = np.round(0.1 * (this_label).sum()).astype(np.uint32)
+                val_indices[indices[:num_choose]] = True
+                indices = indices[num_choose:]
+            train_idx[indices] = True
+    else:
         train_idx = np.zeros_like(test_idx)
-        num_choose = np.round(0.75 * Y.shape[0] + test_idx.sum()).astype(np.uint32)
-        train_idx[np.random.choice(np.arange(0, Y.shape[0])[np.logical_not(test_idx)], num_choose)] = True
-    shuf_test_idx = np.random.permutation(np.where(~train_idx)[0])
+        num_choose = np.round(0.70 * Y.shape[0] + test_idx.sum()).astype(np.uint32)
+        train_idx[np.random.choice(np.arange(0, Y.shape[0])[np.logical_not(test_idx)], num_choose, replace=False)] = True
+
+    shuf_test_idx = np.random.permutation(np.where(np.logical_not(train_idx))[0])
     shuf_train_idx = np.random.permutation(np.where(train_idx)[0])
     Y_test = Y[shuf_test_idx]
     Y_train = Y[shuf_train_idx]
     X_test = X[shuf_test_idx]
     X_train = X[shuf_train_idx]
+    if do_val_data:
+        shuf_val_idx = np.random.permutation(np.where(val_indices)[0])
+        X_val = X[shuf_val_idx]
+        Y_val = Y[shuf_val_idx]
+        return X_train, Y_train, X_test, Y_test, X_val, Y_val, shuf_test_idx, shuf_train_idx
     return X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx
+
+
+def train_triple_negative_nn(X_train, X_test, Y_train, Y_test):
+    hidden_dim = 128
+    num_layers = 5
+    batch_size = 8
+    num_epochs = 100
+    lr = 0.001
+
+    print(X_train.shape)
+    # num_components = 256
+    # print("Running PCA to %d components" % num_components)
+    # pca = PCA(n_components=num_components)
+    # X_train = pca.fit_transform(X_train)
+    # X_test = pca.transform(X_test)
+    X_train = preprocessing.scale(X_train)
+    X_test = preprocessing.scale(X_test)
+
+    # net = Net(hidden_dim=hidden_dim, transform_dim=X_train.shape[1], num_layers=num_layers, num_transformations=1).float()
+    net = ConvNet(num_conv_layers=7, num_fully_connected_layers=2,
+                  fully_connected_input_size=np.floor(X_train.shape[1] / 2 ** 6), hidden_dim=128,
+                  num_transformations=1, center_triplet_loss=False).float()
+
+    def init_weights(m):
+        if type(m) == nn.Linear:
+            torch.nn.init.xavier_uniform(m.weight)
+            m.bias.data.fill_(0.01)
+
+    net.apply(init_weights)
+    criterion = torch.nn.BCEWithLogitsLoss()
+    optimizer = optim.Adam(list(net.parameters()) + list(criterion.parameters()), lr=lr, betas=(0.9, 0.999), eps=1e-08,
+                           weight_decay=0.9)
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95, last_epoch=-1)
+    epoch_example_num = X_train.shape[0]
+    epoch_batches_num = int(epoch_example_num / batch_size)
+    print_train = np.round(epoch_batches_num / 4.0)
+    print_loss = 0
+    print("Starting training, epoch num %d, batches_per_epoch %d" % (num_epochs, epoch_batches_num))
+    for epoch in range(num_epochs):
+        for batch in range(epoch_batches_num):
+            if batch % print_train == 0:
+                print("Epoch num %d batch num %d loss %f" % (epoch, batch, print_loss / print_train))
+                print_loss = 0
+            optimizer.zero_grad()
+            sample_inds = np.random.randint(0, X_train.shape[0], batch_size)
+            x = torch.from_numpy(X_train[sample_inds]).float()
+            y = torch.from_numpy(np.reshape(Y_train[sample_inds], (-1, 1))).float()
+            # x = torch.from_numpy(np.reshape(X_train[sample_inds], (-1, 1, X_train.shape[1]))).float()
+            # y = torch.from_numpy(np.reshape(Y_train[sample_inds], (-1, 1, 1))).float()
+            # calculate centers
+            # centers = calc_centers(net, X_real_train_transformed)
+            # run neural network and calculate center triplet loss
+            out = net.forward(x=x)
+            loss = criterion(out, y)
+            loss.backward()
+            optimizer.step()
+            # TODO add accuracy measure?
+            print_loss += loss.item()
+        scheduler.step(epoch)
+    print("Finished Training")
 
 
 def classify_triple_negative(df, print_wrong=True, run_smote=False):
@@ -390,6 +634,9 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
         sm = SMOTE(sampling_strategy='auto', k_neighbors=5, random_state=999)
         X_train, Y_train = sm.fit_resample(X_train, Y_train)
 
+    run_nn = False
+    if run_nn:
+        train_triple_negative_nn(X_train, X_test, Y_train, Y_test)
 
     pred_test_her2_svm, pred_train_her2_svm, pred_test_her2_rf, \
     pred_train_her2_rf, svm_stats, rf_stats = classify('triple negative',
@@ -450,18 +697,14 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
     incorrect_susp_mask[np.intersect1d(np.intersect1d(rf_test_wrong_inds, changed_by_fish_inds), shuf_test_idx, return_indices=True)[2]] = 1
 
     plot_tsne(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000,
-              incorrect=incorrect_ind_mask, incorrect_susp=incorrect_susp_mask, title='Triple Negative TSNE')
+              incorrect=incorrect_ind_mask, incorrect_susp=incorrect_susp_mask, title='Triple Negative TSNE', triple_negative=True)
 
     return svm_stats, rf_stats
 
 
 def classify_receptor(df, receptor, print_wrong=False):
     X = df[df.columns[['cg' in col for col in df.columns]]].values
-
-    # train_idx = np.zeros(df.shape[0], dtype=np.bool)
-    # train_idx[np.random.choice(np.arange(df.shape[0]), int(df.shape[0] * 0.8))] = True
-
-    # ER
+    # X = X[:, :500]
     Y = np.zeros(df.shape[0])
     Y[df[receptor] == 1] = 1
 
@@ -508,26 +751,30 @@ def df_to_class_labels(df, classes=CLASSES):
     return y
 
 
-def classify_multiclass(df):
+def classify_multiclass(df, dump_visualization):
 
     Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
     X = df[df.columns[['cg' in col for col in df.columns]]].values
 
-    # train_idx = np.zeros(df.shape[0], dtype=np.bool)
-    # train_idx[np.random.choice(np.arange(df.shape[0]), int(df.shape[0] * 0.8))] = True
-
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y)
-    pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf = classify('multiclass', X_test, X_train, Y_test, Y_train,
-                                                                          multiclass=True, class_names=RECEPTOR_MULTICLASS_NAMES_REDUCED)
 
-    pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf = classify('multiclass', X_test, X_train, Y_test,
-                                                                          Y_train, multiclass=True, class_names=RECEPTOR_MULTICLASS_NAMES_REDUCED, run_PCA=True)
+    # sm = SMOTE(sampling_strategy='auto', k_neighbors=5, random_state=999)
+    # X_train, Y_train = sm.fit_resample(X_train, Y_train)
 
-    incorrect_ind_mask = pred_test_rf != Y_test
-    plot_tsne(X_test, Y_test, reduced_classes=False, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000, incorrect=incorrect_ind_mask)
+    pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf, svm_stats, rf_stats = classify('multiclass', X_test,
+                                                                                               X_train, Y_test,
+                                                                                               Y_train, multiclass=True,
+                                                                                               class_names=RECEPTOR_MULTICLASS_NAMES_REDUCED,
+                                                                                               run_PCA=True, dump_visualization=dump_visualization)
+
+    # incorrect_ind_mask = pred_test_rf != Y_test
+    incorrect_ind_mask = pred_test_svm != Y_test
+    plot_tsne(X_test, Y_test, reduced_classes=True, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000, incorrect=incorrect_ind_mask, title='multiclass_tsne')
+    # incorrect_ind_mask = pred_train_rf != Y_train
+    # plot_tsne(X_train, Y_train, reduced_classes=True, pca_dim=32, tsne_dim=2, perplexity=5, n_iter=10000, incorrect=incorrect_ind_mask, title='multiclass_tsne')
 
 
-def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40, n_iter=300, incorrect=None, incorrect_susp=None, title=None):
+def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40, n_iter=300, incorrect=None, incorrect_susp=None, title=None, triple_negative=False):
     pca = PCA(n_components=pca_dim)
     X_PCA = pca.fit_transform(X)
     df_tsne_cols = ['x', 'y']
@@ -547,13 +794,21 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
         class_labels = CLASSES
         names = RECEPTOR_MULTICLASS_NAMES
 
+    if triple_negative:
+        names = ["Triple Negative", "Some Positive"]
+
     if tsne_dim == 2:
         if incorrect is not None:
             df_tsne = pd.DataFrame(X_TSNE, columns=df_tsne_cols)
-            df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
             df_tsne['error'] = incorrect
+
+            df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
+            df_tsne['error'].iloc[np.where(df_tsne['error'] == 0)] = 'Correct'
+            df_tsne['error'].iloc[np.where(df_tsne['error'] == 1)] = 'Error'
+            style_order = ['Correct', 'Error']
             if incorrect_susp is not None:
-                df_tsne['error'].iloc[np.where(incorrect_susp)] = 2
+                df_tsne['error'].iloc[np.where(incorrect_susp)] = 'Suspicious Error'
+                style_order.append('Suspicious Error')
             fig = plt.figure(figsize=(16, 10))
             ax = fig.subplots()
             sns.scatterplot(
@@ -563,7 +818,9 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
                 data=df_tsne,
                 legend='full',
                 alpha=0.7,
-                style='error')
+                style='error',
+                style_order=style_order,
+                s=10)
         else:
             df_tsne = pd.DataFrame(X_TSNE, columns=df_tsne_cols)
             df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
@@ -582,6 +839,7 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
     if title is not None:
         ax.set_title(title)
     plt.savefig(('%s.png' % title).replace(' ', '_'))
+    plt.close(fig)
 
 
 def transform_samples_array(X_array, num_transformations, transform_dim, seed):
@@ -626,13 +884,16 @@ def conv_transform_samples_array(X_array, num_transformations, num_downsample=1,
         return X_transformed_array
 
 
-def run_predict(X, net):
+def run_predict(X, net, use_conv=True):
     # Predict likelihood of each example
     with torch.no_grad():
         net_scores_anomaly = np.zeros((X.shape[0], X.shape[1]))
         for sample in np.arange(X.shape[1]):
             for transform in np.arange(X.shape[0]):
-                net_scores_anomaly[transform, sample] = net.forward(torch.from_numpy(X[transform, sample]).float())
+                if use_conv:
+                    x = X[transform, sample]
+                    x = torch.from_numpy(np.reshape(x, (1, 1, x.shape[0]))).float()
+                net_scores_anomaly[transform, sample] = net.forward(x)
     return net_scores_anomaly
 
 
@@ -729,15 +990,15 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
     return net, criterion
 
 
-def GOAD(df, use_conv=False, num_transformations=64, transform_dim=512, num_epochs=100, batch_size=32,
-         hidden_dim=512, num_layers=10, num_sites=-1, seed=None, center_triplet_loss=True):
+def GOAD(df, use_conv=True, num_transformations=8, transform_dim=256, num_epochs=1, batch_size=16,
+         hidden_dim=256, num_layers=5, num_sites=1000, seed=None, center_triplet_loss=True):
     if seed:
         np.random.seed(seed)
     # class_Y = df_to_class_labels(df, classes=CLASSES)
     # real_df = df[class_Y == 7]
     # anomaly_df = df[class_Y == 0]
     class_Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
-    real_df = df[class_Y != 2]
+    real_df = df[class_Y == 0]
     anomaly_df = df[class_Y == 2]
     # set anomalies class as Triple Negative and real class as others
     print("Starting GOAD")
@@ -754,11 +1015,10 @@ def GOAD(df, use_conv=False, num_transformations=64, transform_dim=512, num_epoc
     X_anomaly_random = (np.random.randint(0, 1000, X_anomaly.ravel().shape[0]) / 1000.0).reshape((-1, num_sites))
     X_anomaly_random_permute = X_anomaly[:, np.random.permutation(X_anomaly.shape[1])]
 
-    X = df[df.columns[['cg' in col for col in df.columns]]].values.astype(np.float32) / 1000.0
-    class_Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
-    plot_TSNE(X, class_Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40, n_iter=10000)
-    import pdb
-    pdb.set_trace()
+    # X = df[df.columns[['cg' in col for col in df.columns]]].values.astype(np.float32) / 1000.0
+    # class_Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
+    # plot_TSNE(X, class_Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40, n_iter=10000)
+
     # X_anomaly = pca.transform(X_anomaly)
     # X_anomaly_random = pca.transform(X_anomaly_random)
 
@@ -784,7 +1044,7 @@ def GOAD(df, use_conv=False, num_transformations=64, transform_dim=512, num_epoc
 
     # Learn classifier + centers
     net, criterion = train_net(X_real_train_transformed, num_transformations, hidden_dim, X_real_train_transformed.shape[2], num_layers, batch_size,
-                               num_epochs, push_lambda=1, use_conv=use_conv, lr=0.0001, center_triplet_loss=center_triplet_loss)
+                               num_epochs, push_lambda=1, use_conv=use_conv, lr=0.001, center_triplet_loss=center_triplet_loss)
     # recalculate centers one last time
     # centers = calc_centers(net, X_real_train_transformed)
     if center_triplet_loss:
@@ -810,13 +1070,291 @@ def GOAD(df, use_conv=False, num_transformations=64, transform_dim=512, num_epoc
     else:
         pass
         #TODO implement mutliclass anomaly scoring in El-Yaniv et al: https://arxiv.org/abs/1805.10917
+    print("Here")
+
+
+def multi_acc(y_pred, y_test):
+    y_pred_softmax = torch.log_softmax(y_pred, dim=1)
+    _, y_pred_tags = torch.max(y_pred_softmax, dim=1)
+
+    correct_pred = (y_pred_tags == y_test).float()
+    acc = correct_pred.sum() / len(y_test)
+
+    class_tpr = []
+    class_tnr = []
+    for i in range(4):
+        curr_class_inds = np.where(y_test == i)
+        if len(curr_class_inds[0]) == 0:
+            class_tpr.append(torch.tensor(0))
+            class_tnr.append(torch.tensor(0))
+            continue
+        class_tpr.append(torch.sum((y_test == i) & (y_pred_tags == i)) / torch.sum(y_test == i))
+        if torch.sum(y_test != i) == 0:
+            class_tnr.append(torch.tensor(0))
+        else:
+            class_tnr.append(torch.sum((y_test != i) & (y_pred_tags != i)) / torch.sum(y_test != i))
+    return class_tpr, class_tnr, acc, _#confusion_matrix(y_test, y_pred_tags)
+
+
+class ClassifierDataset(Dataset):
+
+    def __init__(self, X_data, y_data, num_sites, conv2d=False, random_data=False):
+        self.X_data = X_data
+        self.y_data = y_data
+        self.num_sites = num_sites
+        self.conv2d = conv2d
+        if self.num_sites != X_data.shape[1]:
+            self.site_inds = np.random.randint(0, self.X_data.shape[1], self.num_sites)
+        else:
+            self.site_inds = np.arange(0, X_data.shape[1])
+        self.random_data = random_data
+
+    def __getitem__(self, index):
+        if self.conv2d:
+            return np.reshape(self.X_data[index], (1, -1, 438)), self.y_data[index]
+        else:
+            if self.num_sites == self.X_data.shape[1]:
+                return self.X_data[index], self.y_data[index]
+            else:
+                if self.random_data:
+                    return np.reshape(np.take_along_axis(self.X_data[index], self.site_inds, axis=0), (1, -1)), self.y_data[index]
+                else:
+                    # site_ind = np.random.randint(0, self.X_data[index].shape[0] - self.num_sites)
+                    return np.reshape(np.take_along_axis(self.X_data[index], np.arange(0, 0 + self.num_sites), axis=0), (1, -1)), self.y_data[index]
+
+    def __len__(self):
+        return len(self.X_data)
+
+
+def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers, batch_size, num_epochs, lr, num_sites,
+                       random_data, do_conv, do_sep):
+
+    print(f"Training:\n conv2d: {do_conv}, sep: {do_sep}, sites: {num_sites}, lr: {lr}, random_data: {random_data}")
+
+    def init_weights(m):
+        if type(m) == nn.Linear:
+            torch.nn.init.xavier_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
+        if isinstance(m, nn.Conv2d):
+            torch.nn.init.xavier_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
+
+    # num_components = 64
+    # print(X_train.shape)
+    # print("Running PCA to %d components" % num_components)
+    # pca = PCA(n_components=num_components, random_state=666)
+    # X_train = pca.fit_transform(X_train)
+    # X_test = pca.transform(X_val)
+    # X_train = preprocessing.scale(X_train)
+    # X_val = preprocessing.scale(X_test)
+
+    train_dataset = ClassifierDataset(torch.from_numpy(X_train).float(), torch.from_numpy(Y_train).long(), num_sites, conv2d=do_conv, random_data=random_data)
+    test_dataset = ClassifierDataset(torch.from_numpy(X_test).float(), torch.from_numpy(Y_test).long(), num_sites, conv2d=do_conv, random_data=random_data)
+    val_dataset = ClassifierDataset(torch.from_numpy(X_val).float(), torch.from_numpy(Y_val).long(), num_sites, conv2d=do_conv, random_data=random_data)
+
+    target_list = []
+    for _, t in train_dataset:
+        target_list.append(t)
+
+    target_list = torch.tensor(Y_train).long()
+
+    class_count = np.unique(Y_train, return_counts=True)[1]
+    class_weights = 1. / torch.tensor(class_count, dtype=torch.float)
+    num_classes = len(class_count)
+    if num_classes > 2:
+        class_weights[2] /= 4.0
+    # class_weights[1:] = class_weights[1:] * 4
+    # class_weights[0] = 0.0
+    # print(class_weights)
+
+    class_weights_all = class_weights[target_list]
+
+    weighted_sampler = WeightedRandomSampler(
+        weights=class_weights_all,
+        num_samples=len(class_weights_all),
+        replacement=True
+    )
+
+    train_loader = DataLoader(dataset=train_dataset,
+                              batch_size=batch_size,
+                              sampler=weighted_sampler)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=1)
+    val_loader = DataLoader(dataset=val_dataset, batch_size=1)
+
+    if do_conv:
+        if do_sep:
+            net = ClassifyNet2DSep([829, 438], num_classes=num_classes).float()
+        else:
+            net = ClassifyNet2D(hidden_dim=hidden_dim, num_layers=num_layers, num_conv_layers=2,
+                                fully_connected_input=np.floor(num_sites / 2 ** 1).astype(np.int64), num_classes=num_classes).float()
+    else:
+        # num_sites = num_components
+        net = ClassifyNet(hidden_dim=hidden_dim, num_layers=num_layers, num_conv_layers=0,
+                          fully_connected_input=np.floor(num_sites / 2 ** 1).astype(np.int64), num_sites=num_sites).float()
+
+    net.apply(init_weights)
+    if num_classes > 2:
+        criterion = torch.nn.CrossEntropyLoss()
+    else:
+        criterion = torch.nn.BCEWithLogitsLoss()
+    optimizer = optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999),
+                           eps=1e-08, weight_decay=0.9)
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95, last_epoch=-1)
+
+    accuracy_stats = {}
+    loss_stats = {
+        'train': [],
+        'val': []
+    }
+
+    for e in tqdm(range(1, num_epochs + 1)):
+        # TRAINING
+        train_epoch_loss = 0
+        train_epoch_class_tpr = np.zeros(4)
+        train_epoch_class_tnr = np.zeros(4)
+        train_epoch_acc = np.zeros(0)
+        net.train()
+        count = 0
+        count_val = 0
+        for X_train_batch, y_train_batch in train_loader:
+            count += 1
+            optimizer.zero_grad()
+            y_train_pred = net(X_train_batch).squeeze()
+            train_loss = criterion(y_train_pred, y_train_batch)
+            train_class_tpr, train_class_tnr, train_acc, train_cm = multi_acc(y_train_pred, y_train_batch)
+
+            train_loss.backward()
+            optimizer.step()
+
+            train_epoch_loss += train_loss.item()
+            train_epoch_acc += np.array(train_acc.item())
+            train_epoch_class_tpr += np.array([i.item() for i in train_class_tpr])
+            train_epoch_class_tnr += np.array([i.item() for i in train_class_tnr])
+
+        # VALIDATION
+        with torch.no_grad():
+            val_epoch_loss = 0
+            val_epoch_class_tnr = np.zeros(4)
+            val_epoch_class_tpr = np.zeros(4)
+            val_epoch_acc = np.zeros(0)
+            net.eval()
+            for X_val_batch, y_val_batch in val_loader:
+                count_val += 1
+                y_val_pred = torch.reshape(net(X_val_batch), (-1, 4))
+                val_loss = criterion(y_val_pred, y_val_batch)
+                val_class_tpr, val_class_tnr, val_acc, val_cm = multi_acc(y_val_pred, y_val_batch)
+
+                val_epoch_loss += val_loss.item()
+                val_epoch_acc += np.array(val_acc.item())
+                val_epoch_class_tpr += np.array([i.item() for i in val_class_tpr])
+                val_epoch_class_tnr += np.array([i.item() for i in val_class_tnr])
+
+        loss_stats['train'].append(train_epoch_loss / len(train_loader))
+        loss_stats['val'].append(val_epoch_loss / len(val_loader))
+        accuracy_stats['train_class_TPR'] = train_epoch_class_tpr / count
+        accuracy_stats['val_class_TPR'] = val_epoch_class_tpr / count_val
+        accuracy_stats['train_class_TNR'] = train_epoch_class_tnr / count
+        accuracy_stats['val_class_TNR'] = val_epoch_class_tnr / count_val
+        accuracy_stats['train_acc'] = train_epoch_acc / count
+        accuracy_stats['val_acc'] = val_epoch_acc / count_val
+        scheduler.step(e)
+        tqdm.write(f'Epoch {e + 0:03}: | Train Loss: {train_epoch_loss / len(train_loader):.5f} | '
+                   f'Val Loss: {val_epoch_loss / len(val_loader):.5f} | '
+                   f'Train Class TPR: {np.round(train_epoch_class_tpr / count)}| '
+                   f'Val Class TPR: {np.round(val_epoch_class_tpr / count_val, decimals=3)}| '
+                   )
+
+    # TEST
+    with torch.no_grad():
+        test_epoch_loss = 0
+        test_epoch_class_tpr = np.zeros(4)
+        test_epoch_class_tnr = np.zeros(4)
+        test_epoch_acc = np.zeros(0)
+        net.eval()
+        count_test = 0
+        for X_test_batch, y_test_batch in test_loader:
+            count_test += 1
+            y_test_pred = torch.reshape(net(X_test_batch), (-1, 4))
+            test_loss = criterion(y_test_pred, y_test_batch)
+            test_class_tpr, test_class_tnr, test_acc, test_cm = multi_acc(y_test_pred, y_test_batch)
+
+            test_epoch_acc += np.array(test_acc.item())
+            test_epoch_class_tpr += np.array([i.item() for i in test_class_tpr])
+            test_epoch_class_tnr += np.array([i.item() for i in test_class_tnr])
+
+        accuracy_stats['test_tpr'] = test_epoch_class_tpr / count_test
+        accuracy_stats['test_tnr'] = test_epoch_class_tnr / count_test
+        accuracy_stats['test_acc'] = test_epoch_acc / count_test
+
+    print(f'Test Loss: {test_epoch_loss / len(test_loader):.5f} | '
+          f'Test Class TPR: {np.round(test_epoch_class_tpr / count_test, decimals=3)}| '
+          )
+    return net, accuracy_stats
+
+
+def run_nn(df, num_epochs=20, batch_size=8,
+           hidden_dim=256, num_layers=2,
+           num_sites=-1, seed=666):
+    if seed:
+        np.random.seed(seed)
+    Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
+
+    # if num_sites == -1:
+    #     random_sites = np.arange(df[df.columns[['cg' in col for col in df.columns]]].values.shape[1])
+    #     num_sites = len(random_sites)
+    # else:
+    #     random_sites = np.sort(np.random.choice(df[df.columns[['cg' in col for col in df.columns]]].values.shape[1], num_sites, replace=False))
+
+    X = df[df.columns[['cg' in col for col in df.columns]]].values.astype(np.float32) / 1000.0
+    X_train, Y_train, X_test, Y_test, X_val, Y_val, _, _ = shuffle_idx(X, Y, do_val_data=True)
+
+    print(np.unique(Y_train, return_counts=True))
+    print(np.unique(Y_val, return_counts=True))
+    print(np.unique(Y_test, return_counts=True))
+    stats_df = pd.DataFrame(columns=['Algorithm', 'Learning_Rate', 'Site_amount',
+                                     'Luminal_A_TPR', 'Luminal_A_TNR', 'Luminal_A_ACC',
+                                     'Luminal_B_TPR', 'Luminal_B_TNR', 'Luminal_B_ACC',
+                                     'HER2_Overexpression_TPR', 'HER2_Overexpression_TNR', 'HER2_Overexpression_ACC',
+                                     'Triple_Negative_TPR', 'Triple_Negative_TNR', 'Triple_Negative_ACC'])
+    for alg_type in ['FC_random', 'FC_consecutive', 'Conv', 'Conv_Sep']:
+        for data_amount in [1000, 10000, 50000, 150000, X_train.shape[1]]:
+            if alg_type in ['Conv', 'Conv_Sep'] and data_amount != -1:
+                continue
+            for lr in [1e-6, 1e-5, 5e-5, 1e-4]:
+                net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
+                                                         batch_size, num_epochs, lr=lr, num_sites=data_amount,
+                                                         random_data=alg_type == 'FC_random',
+                                                         do_conv=alg_type in ['Conv', 'Conv_Sep'],
+                                                         do_sep=(alg_type == 'Conv_Sep'))
+                series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
+                                    'TPR': accuracy_stats['test_tpr'][0], 'TNR': accuracy_stats['test_tnr'][0],
+                                    'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Luminal A'})
+                stats_df = stats_df.append(series, ignore_index=True)
+                series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
+                                    'TPR': accuracy_stats['test_tpr'][1], 'TNR': accuracy_stats['test_tnr'][1],
+                                    'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Luminal B'})
+                stats_df = stats_df.append(series, ignore_index=True)
+                series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
+                                    'TPR': accuracy_stats['test_tpr'][2], 'TNR': accuracy_stats['test_tnr'][2],
+                                    'Accuracy': accuracy_stats['test_acc'], 'SubType': 'HER2 OverExpression'})
+                stats_df = stats_df.append(series, ignore_index=True)
+                series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
+                                    'TPR': accuracy_stats['test_tpr'][3], 'TNR': accuracy_stats['test_tnr'][3],
+                                    'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Triple Negative'})
+                stats_df = stats_df.append(series, ignore_index=True)
+
+    # plot TPRs based on site amount
+    g = sns.relplot(x="Site_amount", y="TPR", col="Algorithm", hue="SubType",  markers=True, kind="line", data=stats_df[stats_df.Learning_Rate == 0.0001])
+    plt.show()
     import pdb
     pdb.set_trace()
-    print("Here")
+
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--data_dir', type=str, default="",
+                        help='Path to data directory')
     parser.add_argument('--tsv_path', type=str, default="",
                         help='Path to already cleaned tsv file')
     parser.add_argument('--classify_triple_negative', default=False, action='store_true',
@@ -836,7 +1374,7 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     if args.tsv_path == "":
-        final_df = read_data()
+        final_df = read_data(args.data_dir)
         get_mismatches(final_df)
         df_clinical = fix_mismatches(final_df)
     else:
@@ -849,6 +1387,10 @@ if __name__ == '__main__':
                                      'Classifier': ['SVM', 'SVM', 'SVM',
                                                     'Random Forest', 'Random Forest', 'Random Forest']})
             ax = sns.barplot(x="Classifier", y="Value", hue="Metric", data=stats_df)
+            for p in ax.patches:
+                ax.annotate('{:.0f}%'.format(np.round(p.get_height()*100.0)), (p.get_x() + 0.2, p.get_height()),
+                                              ha='center', va='bottom',
+                                              color='black')
             ax.set_title("Triple Negative Status")
             plt.savefig('./triple_negative_barplot.png')
     if args.classify_receptor:
@@ -868,13 +1410,23 @@ if __name__ == '__main__':
                                      'Receptor': ['ER', 'ER', 'ER', 'ER', 'ER', 'ER',
                                                   'PR', 'PR', 'PR', 'PR', 'PR', 'PR',
                                                   'HER2', 'HER2', 'HER2', 'HER2', 'HER2', 'HER2']})
-            g = sns.catplot(x="Receptor", y="Value", hue="Metric", col="Classifier", data=stats_df, kind="bar", height=4, aspect=.7).set_title("Single Receptor Status")
+            g = sns.catplot(x="Receptor", y="Value", hue="Metric", col="Classifier", data=stats_df, kind="bar", height=4, aspect=.7)
+            plt.subplots_adjust(top=0.85)
+            for index in range(2):
+                for p in g.axes[0][index].patches:
+                    g.axes[0][index].annotate('{:.0f}%'.format(np.round(p.get_height()*100.0)), (p.get_x() + 0.2, p.get_height()),
+                                              ha='center', va='bottom',
+                                              color='black')
+                # g.axes[0][np.floor(index / 3).astype(np.int32)].text(row.Receptor, row.Value, round(row.Value, 2), color='black', ha="center")
+            g.fig.suptitle("Single Receptor Status")
             g.savefig('./receptor_barplot.png')
     if args.classify_multiclass:
-        classify_multiclass(df_clinical)
+        classify_multiclass(df_clinical, args.dump_vis)
     if args.run_GOAD:
         GOAD(df_clinical)
-    import pdb
-    pdb.set_trace()
-    print('here')
+
+    run_nn(df_clinical  )
+    # import pdb
+    # pdb.set_trace()
+    print('Finished')
 
