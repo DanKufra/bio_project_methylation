@@ -89,7 +89,7 @@ class ClassifyNet2DSep(nn.Module):
 
 
 class ClassifyNet2D(nn.Module):
-    def __init__(self, hidden_dim=128, num_layers=5, fully_connected_input=100, num_conv_layers=3, num_classes=4):
+    def __init__(self, hidden_dim=64, num_layers=2, num_conv_layers=2, num_classes=4):
         super(ClassifyNet2D, self).__init__()
         self.layers = nn.ModuleList()
         self.num_conv_layers = num_conv_layers
@@ -99,7 +99,7 @@ class ClassifyNet2D(nn.Module):
                                              kernel_size=int(5), padding=(int(5) // 2)))
                 self.layers.append(nn.MaxPool2d(2))
             elif i == num_conv_layers - 1:
-                self.layers.append(nn.Conv2d(in_channels=int(32), out_channels=16,
+                self.layers.append(nn.Conv2d(in_channels=int(32), out_channels=8,
                                              kernel_size=int(5), padding=(int(5) // 2)))
             else:
                 self.layers.append(nn.Conv2d(in_channels=int(32), out_channels=int(32),
@@ -107,7 +107,7 @@ class ClassifyNet2D(nn.Module):
                 self.layers.append(nn.MaxPool2d(2))
         for i in range(num_layers):
             if i == 0:
-                self.layers.append(nn.Linear(414*219*16, hidden_dim))
+                self.layers.append(nn.Linear(414*219*8, hidden_dim))
             elif i == num_layers-1:
                 self.layers.append(nn.Linear(hidden_dim, num_classes))
             else:
@@ -1297,7 +1297,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
 
 
 def run_nn(df, num_epochs=40, batch_size=8,
-           hidden_dim=256, num_layers=2,
+           hidden_dim=64, num_layers=2,
            num_sites=-1, seed=666):
     if seed:
         np.random.seed(seed)
