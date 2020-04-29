@@ -1345,7 +1345,9 @@ def run_nn(df, num_epochs=20, batch_size=8,
 
     # plot TPRs based on site amount
     g = sns.relplot(x="Site_amount", y="TPR", col="Algorithm", hue="SubType",  markers=True, kind="line", data=stats_df[stats_df.Learning_Rate == 0.0001])
-    plt.show()
+    g.fig.suptitle("TPR per Subtype")
+    g.savefig('./tpr_subtype_plot_nn.png')
+    # plt.show()
     import pdb
     pdb.set_trace()
 
