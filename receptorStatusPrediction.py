@@ -1284,6 +1284,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
             test_loss = criterion(y_test_pred, y_test_batch)
             test_class_tpr, test_class_tnr, test_acc, test_cm = multi_acc(y_test_pred, y_test_batch)
 
+            test_epoch_loss += test_loss.item()
             test_epoch_acc += np.array(test_acc.item())
             test_epoch_class_tpr += np.array([i.item() for i in test_class_tpr])
             test_epoch_class_tnr += np.array([i.item() for i in test_class_tnr])
@@ -1299,8 +1300,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
 
 
 def run_nn(df, num_epochs=40, batch_size=8,
-           hidden_dim=64, num_layers=2,
-           num_sites=-1, seed=666):
+           hidden_dim=64, num_layers=2, seed=666):
     if seed:
         np.random.seed(seed)
     Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
@@ -1319,7 +1319,7 @@ def run_nn(df, num_epochs=40, batch_size=8,
     print(np.unique(Y_test, return_counts=True))
     stats_df = pd.DataFrame(columns=['Algorithm', 'Learning_Rate', 'Site_amount',
                                      'TPR', 'TNR', 'Accuracy', 'SubType'])
-    for alg_type in ['Conv', 'Conv_Sep', 'FC_consecutive', 'FC_random']:
+    for alg_type in ['Conv', 'Conv_Sep']:#, 'FC_consecutive', 'FC_random']:
         for data_amount in [1000, 10000, 50000, 150000, X_train.shape[1]]:
             if alg_type in ['Conv', 'Conv_Sep'] and data_amount != X_train.shape[1]:
                 continue
