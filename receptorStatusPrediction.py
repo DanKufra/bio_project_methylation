@@ -1316,7 +1316,7 @@ def run_nn(df, num_epochs=20, batch_size=8,
     print(np.unique(Y_val, return_counts=True))
     print(np.unique(Y_test, return_counts=True))
     stats_df = pd.DataFrame(columns=['Algorithm', 'Learning_Rate', 'Site_amount',
-                                     'TPR', 'TNR', 'ACCURACY', 'SubType'])
+                                     'TPR', 'TNR', 'Accuracy', 'SubType'])
     for alg_type in ['Conv', 'Conv_Sep', 'FC_consecutive', 'FC_random']:
         for data_amount in [1000, 10000, 50000, 150000, X_train.shape[1]]:
             if alg_type in ['Conv', 'Conv_Sep'] and data_amount != X_train.shape[1]:
