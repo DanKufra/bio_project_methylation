@@ -1319,8 +1319,8 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     return net, accuracy_stats
 
 
-def run_nn(df, num_epochs=100, batch_size=8,
-           hidden_dim=64, num_layers=2, seed=666):
+def run_nn(df, num_epochs=50, batch_size=8,
+           hidden_dim=128, num_layers=3, seed=666):
     if seed:
         np.random.seed(seed)
     Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
@@ -1334,7 +1334,7 @@ def run_nn(df, num_epochs=100, batch_size=8,
     stats_df = pd.DataFrame(columns=['Algorithm', 'Learning_Rate', 'Site_amount',
                                      'TPR', 'FPR', 'Accuracy', 'SubType'])
     # for alg_type in ['Conv_Sep', 'Conv']:#, 'FC_consecutive', 'FC_random']:
-    for alg_type in ['FC_consecutive', 'FC_random', 'Conv_Sep', 'Conv']:
+    for alg_type in ['FC_consecutive', 'FC_random',  'Conv', 'Conv_Sep']:
         for data_amount in [1000, 10000, 50000, 150000, X_train.shape[1]]:
             if alg_type in ['Conv', 'Conv_Sep'] and data_amount != X_train.shape[1]:
                 continue
