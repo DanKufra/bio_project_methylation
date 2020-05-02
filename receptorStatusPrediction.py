@@ -625,8 +625,8 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
     print("Classifying Triple Negative")
     # Create labels
     Y = np.zeros(df.shape[0])
-    Y[df.pos] = 1
-    Y[df.neg] = 0
+    Y[df.pos] = 0
+    Y[df.neg] = 1
 
     # 1 = not triple negative, 0 = triple negative
     X = df[df.columns[['cg' in col for col in df.columns]]].values
@@ -647,9 +647,6 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
         sm = SMOTE(sampling_strategy='auto', k_neighbors=5, random_state=999)
         X_train, Y_train = sm.fit_resample(X_train, Y_train)
 
-    run_nn = False
-    if run_nn:
-        train_triple_negative_nn(X_train, X_test, Y_train, Y_test)
 
     pred_test_her2_svm, pred_train_her2_svm, pred_test_her2_rf, \
     pred_train_her2_rf, svm_stats, rf_stats = classify('triple negative',
@@ -808,7 +805,7 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
         names = RECEPTOR_MULTICLASS_NAMES
 
     if triple_negative:
-        names = ["Triple Negative", "Some Positive"]
+        names = ["Some Positive", "Triple Negative"]
 
     if tsne_dim == 2:
         if incorrect is not None:
@@ -1351,14 +1348,14 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     return net, accuracy_stats
 
 
-def run_nn(df, num_epochs=50, batch_size=8,
+def run_nn(df, num_epochs=70, batch_size=8,
            hidden_dim=64, num_layers=3, seed=666, triple_negative=False):
     if seed:
         np.random.seed(seed)
     if triple_negative:
         Y = np.zeros(df.shape[0])
-        Y[df.pos] = 1
-        Y[df.neg] = 0
+        Y[df.pos] = 0
+        Y[df.neg] = 1
     else:
         Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
 
@@ -1382,9 +1379,9 @@ def run_nn(df, num_epochs=50, batch_size=8,
                 if triple_negative:
                     series = pd.Series({'Value': accuracy_stats['test_acc'][0], 'Metric': 'Accuracy', 'Classifier': alg_type})
                     stats_df = stats_df.append(series, ignore_index=True)
-                    series = pd.Series({'Value': accuracy_stats['test_tpr'][1], 'Metric': 'TPR', 'Classifier': alg_type})
+                    series = pd.Series({'Value': accuracy_stats['test_tpr'][0], 'Metric': 'TPR', 'Classifier': alg_type})
                     stats_df = stats_df.append(series, ignore_index=True)
-                    series = pd.Series({'Value': accuracy_stats['test_tpr'][0], 'Metric': 'TNR', 'Classifier': alg_type})
+                    series = pd.Series({'Value': accuracy_stats['test_tpr'][1], 'Metric': 'TNR', 'Classifier': alg_type})
                     stats_df = stats_df.append(series, ignore_index=True)
         return stats_df
     else:
