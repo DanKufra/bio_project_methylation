@@ -102,7 +102,7 @@ class ClassifyNet2D(nn.Module):
                                              kernel_size=int(5), padding=(int(5) // 2)))
                 self.layers.append(nn.MaxPool2d(2))
             elif i == num_conv_layers - 1:
-                self.layers.append(nn.Conv2d(in_channels=int(32), out_channels=8,
+                self.layers.append(nn.Conv2d(in_channels=int(32), out_channels=16,
                                              kernel_size=int(5), padding=(int(5) // 2)))
             else:
                 self.layers.append(nn.Conv2d(in_channels=int(32), out_channels=int(32),
@@ -111,7 +111,7 @@ class ClassifyNet2D(nn.Module):
         for i in range(num_layers):
             if i == 0:
                 # self.layers.append(nn.Linear(414*219*8, hidden_dim))
-                self.layers.append(nn.Linear(103 * 54 * 8, hidden_dim))
+                self.layers.append(nn.Linear(103 * 54 * 16, hidden_dim))
             elif i == num_layers-1:
                 if num_classes == 2:
                     self.layers.append(nn.Linear(hidden_dim, 1))
@@ -131,7 +131,7 @@ class ClassifyNet2D(nn.Module):
                     # import pdb
                     # pdb.set_trace()
                     # x = x.view((-1, 414*219*8))
-                    x = x.view((-1, 103 * 54 * 8))
+                    x = x.view((-1, 103 * 54 * 16))
                     intermediate = x
                 x = F.relu(layer(x))
             else:
@@ -1454,7 +1454,7 @@ def run_nn(df, num_epochs=70, batch_size=8,
         stats_df = pd.DataFrame(columns=['Value', 'Metric', 'Classifier'])
         for alg_type in ['CNN', 'CNN_Sep', 'FC']:
             for data_amount in [X_train.shape[1]]:
-                lr = 1e-6
+                lr = 1e-5
                 net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
                                                          batch_size, num_epochs, lr=lr, num_sites=data_amount,
                                                          random_data=False,
