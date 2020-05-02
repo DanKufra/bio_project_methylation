@@ -136,7 +136,7 @@ class ClassifyNet2D(nn.Module):
                 x = F.relu(layer(x))
             else:
                 x = layer(x)
-        return x, intermediate
+        return x# intermediate
 
 
 class ClassifyNet(nn.Module):
@@ -1386,10 +1386,10 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
             intermediate_preds = []
         for X_test_batch, y_test_batch in test_loader:
             count_test += 1
-            if triple_negative and do_conv and not do_sep:
-                y_test_pred, intermediate_pred = net(X_test_batch)
-            else:
-                y_test_pred = net(X_test_batch)
+            # if triple_negative and do_conv and not do_sep:
+            #     y_test_pred, intermediate_pred = net(X_test_batch)
+            # else:
+            y_test_pred = net(X_test_batch)
             if not triple_negative:
                 y_test_pred = torch.reshape(y_test_pred, (-1, 4))
             else:
