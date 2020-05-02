@@ -111,7 +111,7 @@ class ClassifyNet2D(nn.Module):
         for i in range(num_layers):
             if i == 0:
                 # self.layers.append(nn.Linear(414*219*8, hidden_dim))
-                self.layers.append(nn.Linear(106 * 55 * 8, hidden_dim))
+                self.layers.append(nn.Linear(103 * 54 * 8, hidden_dim))
             elif i == num_layers-1:
                 if num_classes == 2:
                     self.layers.append(nn.Linear(hidden_dim, 1))
@@ -131,7 +131,7 @@ class ClassifyNet2D(nn.Module):
                     # import pdb
                     # pdb.set_trace()
                     # x = x.view((-1, 414*219*8))
-                    x = x.view((-1, 106 * 55 * 8))
+                    x = x.view((-1, 103 * 54 * 8))
                     intermediate = x
                 x = F.relu(layer(x))
             else:
