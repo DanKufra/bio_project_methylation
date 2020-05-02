@@ -1381,9 +1381,9 @@ def run_nn(df, num_epochs=50, batch_size=8,
                 if triple_negative:
                     series = pd.Series({'Value': accuracy_stats['test_acc'][0], 'Metric': 'Accuracy', 'Classifier': alg_type})
                     stats_df = stats_df.append(series, ignore_index=True)
-                    series = pd.Series({'Value': accuracy_stats['test_tpr'][0], 'Metric': 'TPR', 'Classifier': alg_type})
+                    series = pd.Series({'Value': accuracy_stats['test_tpr'][1], 'Metric': 'TPR', 'Classifier': alg_type})
                     stats_df = stats_df.append(series, ignore_index=True)
-                    series = pd.Series({'Value': 1 - accuracy_stats['test_tpr'][1], 'Metric': 'TNR', 'Classifier': alg_type})
+                    series = pd.Series({'Value': accuracy_stats['test_tpr'][0], 'Metric': 'TNR', 'Classifier': alg_type})
                     stats_df = stats_df.append(series, ignore_index=True)
         return stats_df
     else:
