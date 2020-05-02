@@ -1106,7 +1106,7 @@ class ClassifierDataset(Dataset):
         self.num_sites = num_sites
         self.conv2d = conv2d
         if self.num_sites != X_data.shape[1]:
-            self.site_inds = np.random.randint(0, self.X_data.shape[1], self.num_sites)
+            self.site_inds = np.random.choice(np.arange(0, self.X_data.shape[1]), size=self.num_sites, replace=False)
             # self.site_inds = np.arange(np.random.randint(0, self.X_data.shape[1] - self.num_sites, 1))
             # pass
         else:
