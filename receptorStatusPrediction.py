@@ -1454,7 +1454,7 @@ def run_nn(df, num_epochs=70, batch_size=8,
         stats_df = pd.DataFrame(columns=['Value', 'Metric', 'Classifier'])
         for alg_type in ['CNN', 'CNN_Sep', 'FC']:
             for data_amount in [X_train.shape[1]]:
-                lr = 1e-5
+                lr = 1e-4
                 net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
                                                          batch_size, num_epochs, lr=lr, num_sites=data_amount,
                                                          random_data=False,
@@ -1477,7 +1477,7 @@ def run_nn(df, num_epochs=70, batch_size=8,
             for data_amount in [1000, 10000, 50000, 150000, X_train.shape[1]]:
                 if alg_type in ['Conv', 'Conv_Sep'] and data_amount != X_train.shape[1]:
                     continue
-                for lr in [1e-3]:
+                for lr in [1e-5]:
                     net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
                                                              batch_size, num_epochs, lr=lr, num_sites=data_amount,
                                                              random_data=alg_type == 'FC_random',
