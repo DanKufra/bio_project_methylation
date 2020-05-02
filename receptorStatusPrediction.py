@@ -126,10 +126,12 @@ class ClassifyNet2D(nn.Module):
             # pdb.set_trace()
             intermediate = None
             if i < len(self.layers) - 1:
+                print(x.shape)
                 if i == self.num_conv_layers * 2 - 1 and self.num_conv_layers > 0:
                     # import pdb
                     # pdb.set_trace()
-                    x = x.view((-1, 414*219*8))
+                    # x = x.view((-1, 414*219*8))
+                    x = x.view((-1, 106 * 55 * 8))
                     intermediate = x
                 x = F.relu(layer(x))
             else:
@@ -1450,7 +1452,7 @@ def run_nn(df, num_epochs=70, batch_size=8,
     print(np.unique(Y_test, return_counts=True))
     if triple_negative:
         stats_df = pd.DataFrame(columns=['Value', 'Metric', 'Classifier'])
-        for alg_type in ['FC', 'CNN', 'CNN_Sep']:
+        for alg_type in ['CNN', 'CNN_Sep', ''FC'']:
             for data_amount in [X_train.shape[1]]:
                 lr = 1e-5
                 net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
