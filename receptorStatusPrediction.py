@@ -628,6 +628,7 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
     Y[df.pos] = 1
     Y[df.neg] = 0
 
+    # 1 = not triple negative, 0 = triple negative
     X = df[df.columns[['cg' in col for col in df.columns]]].values
 
     # shuffle and split X and Y into train and test
