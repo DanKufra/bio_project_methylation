@@ -46,7 +46,10 @@ class ClassifyNet2DSep(nn.Module):
 
         self.fc1 = nn.Linear(self.num_filters*(1+3+5+7)*829 + self.num_filters*(1+3+5+7)*438, 512)
         self.fc2 = nn.Linear(512, 128)
-        self.fc3 = nn.Linear(128, num_classes)
+        if num_classes == 2:
+            self.fc3 = nn.Linear(128, 1)
+        else:
+            self.fc3 = nn.Linear(128, num_classes)
 
     def forward(self, x):
         # w11 = F.relu(self.w11(x)).view(-1, 829*1)
@@ -110,7 +113,10 @@ class ClassifyNet2D(nn.Module):
 
                 self.layers.append(nn.Linear(414*219*8, hidden_dim))
             elif i == num_layers-1:
-                self.layers.append(nn.Linear(hidden_dim, num_classes))
+                if num_classes == 2:
+                    self.layers.append(nn.Linear(hidden_dim, 1))
+                else:
+                    self.layers.append(nn.Linear(hidden_dim, num_classes))
             else:
                 self.layers.append(nn.Linear(hidden_dim, hidden_dim))
 
@@ -138,7 +144,10 @@ class ClassifyNet(nn.Module):
 
         self.layers.append(nn.Linear(num_sites, hidden_dim))
         self.layers.append(nn.Linear(hidden_dim, hidden_dim))
-        self.layers.append(nn.Linear(hidden_dim, num_classes))
+        if num_classes == 2:
+            self.layers.append(nn.Linear(hidden_dim, 1))
+        else:
+            self.layers.append(nn.Linear(hidden_dim, num_classes))
 
         # define dropout layer in __init__
         self.drop_layer = nn.Dropout(p=0.2)
@@ -1076,9 +1085,12 @@ def GOAD(df, use_conv=True, num_transformations=8, transform_dim=256, num_epochs
     print("Here")
 
 
-def multi_acc(y_pred, y_test):
-    y_pred_softmax = torch.log_softmax(y_pred, dim=1)
-    _, y_pred_tags = torch.max(y_pred_softmax, dim=1)
+def multi_acc(y_pred, y_test, triple_negative=False):
+    if triple_negative:
+        y_pred_tags = y_pred > 0.5
+    else:
+        y_pred_softmax = torch.log_softmax(y_pred, dim=1)
+        _, y_pred_tags = torch.max(y_pred_softmax, dim=1)
 
     correct_pred = (y_pred_tags == y_test).float()
     acc = correct_pred.sum() / len(y_test)
@@ -1086,7 +1098,8 @@ def multi_acc(y_pred, y_test):
     class_true_positive = []
     class_false_positive = []
     class_count = []
-    for i in range(4):
+    label_range = y_pred.shape[1] if not triple_negative else 2
+    for i in range(label_range):
         curr_class_inds = np.where(y_test == i)
         class_count.append(torch.sum(y_test == i))
         if len(curr_class_inds[0]) == 0:
@@ -1133,7 +1146,7 @@ class ClassifierDataset(Dataset):
 
 
 def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers, batch_size, num_epochs, lr, num_sites,
-                       random_data, do_conv, do_sep, alg):
+                       random_data, do_conv, do_sep, alg, triple_negative=False):
 
     print(f"Training:\n conv2d: {do_conv}, sep: {do_sep}, sites: {num_sites}, lr: {lr}, random_data: {random_data}")
 
@@ -1194,7 +1207,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
             net = ClassifyNet2D(hidden_dim=hidden_dim, num_layers=num_layers, num_conv_layers=2, num_classes=num_classes).float()
     else:
         # num_sites = num_components
-        net = ClassifyNet(hidden_dim=hidden_dim, num_layers=num_layers, num_conv_layers=0,
+        net = ClassifyNet(hidden_dim=hidden_dim, num_layers=num_layers, num_conv_layers=0, num_classes=num_classes,
                           fully_connected_input=np.floor(num_sites / 2 ** 1).astype(np.int64), num_sites=num_sites).float()
 
     net.apply(init_weights)
@@ -1215,10 +1228,10 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     for e in tqdm(range(1, num_epochs + 1)):
         # TRAINING
         train_epoch_loss = 0
-        train_epoch_class_tp = np.zeros(4)
-        train_epoch_class_fp = np.zeros(4)
-        train_epoch_class_count = np.zeros(4)
-        train_epoch_acc = np.zeros(0)
+        train_epoch_class_tp = np.zeros(num_classes)
+        train_epoch_class_fp = np.zeros(num_classes)
+        train_epoch_class_count = np.zeros(num_classes)
+        train_epoch_acc = np.zeros(1)
         net.train()
         count = 0
         count_val = 0
@@ -1226,8 +1239,10 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
             count += 1
             optimizer.zero_grad()
             y_train_pred = net(X_train_batch).squeeze()
+            if triple_negative:
+                y_train_batch = y_train_batch.type(torch.FloatTensor)
             train_loss = criterion(y_train_pred, y_train_batch)
-            train_class_tp, train_class_fp, train_class_count, train_acc = multi_acc(y_train_pred, y_train_batch)
+            train_class_tp, train_class_fp, train_class_count, train_acc = multi_acc(y_train_pred, y_train_batch, triple_negative)
             train_loss.backward()
             optimizer.step()
 
@@ -1239,16 +1254,21 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
         # VALIDATION
         with torch.no_grad():
             val_epoch_loss = 0
-            val_epoch_class_tp = np.zeros(4)
-            val_epoch_class_fp = np.zeros(4)
-            val_epoch_class_count = np.zeros(4)
-            val_epoch_acc = np.zeros(0)
+            val_epoch_class_tp = np.zeros(num_classes)
+            val_epoch_class_fp = np.zeros(num_classes)
+            val_epoch_class_count = np.zeros(num_classes)
+            val_epoch_acc = np.zeros(1)
             net.eval()
             for X_val_batch, y_val_batch in val_loader:
                 count_val += 1
-                y_val_pred = torch.reshape(net(X_val_batch), (-1, 4))
+                y_val_pred = net(X_val_batch)
+                if not triple_negative:
+                    y_val_pred = torch.reshape(y_val_pred, (-1, 4))
+                else:
+                    y_val_pred = y_val_pred.reshape(1)
+                    y_val_batch = y_val_batch.type(torch.FloatTensor)
                 val_loss = criterion(y_val_pred, y_val_batch)
-                val_class_tp, val_class_fp, val_class_count, val_acc = multi_acc(y_val_pred, y_val_batch)
+                val_class_tp, val_class_fp, val_class_count, val_acc = multi_acc(y_val_pred, y_val_batch, triple_negative)
 
                 val_epoch_loss += val_loss.item()
                 val_epoch_acc += np.array(val_acc.item())
@@ -1256,11 +1276,11 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
                 val_epoch_class_fp += np.array([i.item() for i in val_class_fp])
                 val_epoch_class_count += np.array([i.item() for i in val_class_count])
 
-        train_sum_not_idx = np.zeros(4)
-        val_sum_not_idx = np.zeros(4)
-        for i in range(4):
-            val_sum_not_idx[i] = np.sum([val_epoch_class_count[j] for j in np.arange(4) if j != i])
-            train_sum_not_idx[i] = np.sum([train_epoch_class_count[j] for j in np.arange(4) if j != i])
+        train_sum_not_idx = np.zeros(num_classes)
+        val_sum_not_idx = np.zeros(num_classes)
+        for i in range(num_classes):
+            val_sum_not_idx[i] = np.sum([val_epoch_class_count[j] for j in np.arange(num_classes) if j != i])
+            train_sum_not_idx[i] = np.sum([train_epoch_class_count[j] for j in np.arange(num_classes) if j != i])
 
         loss_stats['train'].append(train_epoch_loss / len(train_loader))
         loss_stats['val'].append(val_epoch_loss / len(val_loader))
@@ -1280,19 +1300,24 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     # TEST
     with torch.no_grad():
         test_epoch_loss = 0
-        test_epoch_class_tp = np.zeros(4)
-        test_epoch_class_fp = np.zeros(4)
-        test_epoch_class_count = np.zeros(4)
-        test_epoch_acc = np.zeros(0)
+        test_epoch_class_tp = np.zeros(num_classes)
+        test_epoch_class_fp = np.zeros(num_classes)
+        test_epoch_class_count = np.zeros(num_classes)
+        test_epoch_acc = np.zeros(1)
         net.eval()
         count_test = 0
         preds = []
         lbls = []
         for X_test_batch, y_test_batch in test_loader:
             count_test += 1
-            y_test_pred = torch.reshape(net(X_test_batch), (-1, 4))
+            y_test_pred = net(X_test_batch)
+            if not triple_negative:
+                y_test_pred = torch.reshape(y_test_pred, (-1, 4))
+            else:
+                y_test_pred = y_test_pred.reshape(1)
+                y_test_batch = y_test_batch.type(torch.FloatTensor)
             test_loss = criterion(y_test_pred, y_test_batch)
-            test_class_tp, test_class_fp, test_class_count, test_acc = multi_acc(y_test_pred, y_test_batch)
+            test_class_tp, test_class_fp, test_class_count, test_acc = multi_acc(y_test_pred, y_test_batch, triple_negative)
 
             test_epoch_loss += test_loss.item()
             test_epoch_acc += np.array(test_acc.item())
@@ -1300,14 +1325,17 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
             test_epoch_class_fp += np.array([i.item() for i in test_class_fp])
             test_epoch_class_count += np.array([i.item() for i in test_class_count])
 
-            y_pred_softmax = torch.log_softmax(y_test_pred, dim=1)
-            _, y_pred_tags = torch.max(y_pred_softmax, dim=1)
+            if triple_negative:
+                y_pred_tags = y_test_pred > 0.5
+            else:
+                y_pred_softmax = torch.log_softmax(y_test_pred, dim=1)
+                _, y_pred_tags = torch.max(y_pred_softmax, dim=1)
             preds.append(y_pred_tags.item())
             lbls.append(y_test_batch.item())
 
-        test_sum_not_idx = np.zeros(4)
-        for i in range(4):
-            test_sum_not_idx[i] = np.sum([test_epoch_class_count[j] for j in np.arange(4) if j != i])
+        test_sum_not_idx = np.zeros(num_classes)
+        for i in range(num_classes):
+            test_sum_not_idx[i] = np.sum([test_epoch_class_count[j] for j in np.arange(num_classes) if j != i])
 
         accuracy_stats['test_tpr'] = test_epoch_class_tp / test_epoch_class_count
         accuracy_stats['test_fpr'] = test_epoch_class_fp / test_sum_not_idx
@@ -1315,15 +1343,23 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     print(f'Test Loss: {test_epoch_loss / len(test_loader):.5f} | '
           f'Test Class TPR: {np.round(test_epoch_class_tp / test_epoch_class_count, decimals=3)}| '
           )
-    print_stats('%s_%f_%s' % (alg , lr, num_sites), 'test', 'multiclass', preds, lbls, multiclass=True, cmap=plt.cm.Blues, classes=RECEPTOR_MULTICLASS_NAMES_REDUCED, normalize=True, dump_visualization=True)
+    if triple_negative:
+        pass
+    else:
+        print_stats('%s_%f_%s' % (alg , lr, num_sites), 'test', 'multiclass', preds, lbls, multiclass=True, cmap=plt.cm.Blues, classes=RECEPTOR_MULTICLASS_NAMES_REDUCED, normalize=True, dump_visualization=True)
     return net, accuracy_stats
 
 
 def run_nn(df, num_epochs=50, batch_size=8,
-           hidden_dim=128, num_layers=3, seed=666):
+           hidden_dim=64, num_layers=3, seed=666, triple_negative=False):
     if seed:
         np.random.seed(seed)
-    Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
+    if triple_negative:
+        Y = np.zeros(df.shape[0])
+        Y[df.pos] = 1
+        Y[df.neg] = 0
+    else:
+        Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
 
     X = df[df.columns[['cg' in col for col in df.columns]]].values.astype(np.float32) / 1000.0
     X_train, Y_train, X_test, Y_test, X_val, Y_val, _, _ = shuffle_idx(X, Y, do_val_data=True)
@@ -1331,43 +1367,62 @@ def run_nn(df, num_epochs=50, batch_size=8,
     print(np.unique(Y_train, return_counts=True))
     print(np.unique(Y_val, return_counts=True))
     print(np.unique(Y_test, return_counts=True))
-    stats_df = pd.DataFrame(columns=['Algorithm', 'Learning_Rate', 'Site_amount',
-                                     'TPR', 'FPR', 'Accuracy', 'SubType'])
-    # for alg_type in ['Conv_Sep', 'Conv']:#, 'FC_consecutive', 'FC_random']:
-    for alg_type in ['FC_consecutive', 'FC_random',  'Conv', 'Conv_Sep']:
-        for data_amount in [1000, 10000, 50000, 150000, X_train.shape[1]]:
-            if alg_type in ['Conv', 'Conv_Sep'] and data_amount != X_train.shape[1]:
-                continue
-            for lr in [1e-6, 1e-5, 1e-4]:
+    if triple_negative:
+        stats_df = pd.DataFrame(columns=['Value', 'Metric', 'Classifier'])
+        for alg_type in ['FC', 'CNN_Sep', 'CNN']:
+            for data_amount in [X_train.shape[1]]:
+                lr = 1e-5
                 net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
                                                          batch_size, num_epochs, lr=lr, num_sites=data_amount,
-                                                         random_data=alg_type == 'FC_random',
-                                                         do_conv=alg_type in ['Conv', 'Conv_Sep'],
-                                                         do_sep=(alg_type == 'Conv_Sep'), alg=alg_type)
-                torch.save(net.state_dict(), './%s_%f_%dnet'%(alg_type, lr, data_amount))
-                series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
-                                    'TPR': accuracy_stats['test_tpr'][0], 'FPR': accuracy_stats['test_fpr'][0],
-                                    'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Luminal A'})
-                stats_df = stats_df.append(series, ignore_index=True)
-                series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
-                                    'TPR': accuracy_stats['test_tpr'][1], 'FPR': accuracy_stats['test_fpr'][1],
-                                    'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Luminal B'})
-                stats_df = stats_df.append(series, ignore_index=True)
-                series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
-                                    'TPR': accuracy_stats['test_tpr'][2], 'FPR': accuracy_stats['test_fpr'][2],
-                                    'Accuracy': accuracy_stats['test_acc'], 'SubType': 'HER2 OverExpression'})
-                stats_df = stats_df.append(series, ignore_index=True)
-                series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
-                                    'TPR': accuracy_stats['test_tpr'][3], 'FPR': accuracy_stats['test_fpr'][3],
-                                    'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Triple Negative'})
-                stats_df = stats_df.append(series, ignore_index=True)
-
-    import pdb
-    pdb.set_trace()
-    # plot TPRs based on site amount
-    g = sns.relplot(x="Site_amount", y="TPR", col="Algorithm", hue="SubType",  markers=True, kind="line", data=stats_df[stats_df.Learning_Rate == 0.0001])
-    g.fig.suptitle("TPR per Subtype")
-    g.savefig('./tpr_subtype_plot_nn.png')
+                                                         random_data=False,
+                                                         do_conv=alg_type in ['CNN', 'CNN_Seperated'],
+                                                         do_sep=(alg_type == 'CNN_Seperated'), alg=alg_type,
+                                                         triple_negative=triple_negative)
+                if triple_negative:
+                    series = pd.Series({'Value': accuracy_stats['test_acc'][0], 'Metric': 'Accuracy', 'Classifier': alg_type})
+                    stats_df = stats_df.append(series, ignore_index=True)
+                    series = pd.Series({'Value': accuracy_stats['test_tpr'][0], 'Metric': 'TPR', 'Classifier': alg_type})
+                    stats_df = stats_df.append(series, ignore_index=True)
+                    series = pd.Series({'Value': 1 - accuracy_stats['test_tpr'][1], 'Metric': 'TNR', 'Classifier': alg_type})
+                    stats_df = stats_df.append(series, ignore_index=True)
+        return stats_df
+    else:
+        stats_df = pd.DataFrame(columns=['Algorithm', 'Learning_Rate', 'Site_amount',
+                                         'TPR', 'FPR', 'Accuracy', 'SubType'])
+        # for alg_type in ['Conv_Sep', 'Conv']:#, 'FC_consecutive', 'FC_random']:
+        for alg_type in ['FC_consecutive', 'FC_random', 'Conv_Sep', 'Conv']:
+            for data_amount in [1000, 10000, 50000, 150000, X_train.shape[1]]:
+                if alg_type in ['Conv', 'Conv_Sep'] and data_amount != X_train.shape[1]:
+                    continue
+                for lr in [1e-5]:
+                    net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
+                                                             batch_size, num_epochs, lr=lr, num_sites=data_amount,
+                                                             random_data=alg_type == 'FC_random',
+                                                             do_conv=alg_type in ['Conv', 'Conv_Sep'],
+                                                             do_sep=(alg_type == 'Conv_Sep'), alg=alg_type,
+                                                             triple_negative=triple_negative)
+                    if not triple_negative:
+                        torch.save(net.state_dict(), './%s_%f_%dnet'%(alg_type, lr, data_amount))
+                        series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
+                                            'TPR': accuracy_stats['test_tpr'][0], 'FPR': accuracy_stats['test_fpr'][0],
+                                            'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Luminal A'})
+                        stats_df = stats_df.append(series, ignore_index=True)
+                        series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
+                                            'TPR': accuracy_stats['test_tpr'][1], 'FPR': accuracy_stats['test_fpr'][1],
+                                            'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Luminal B'})
+                        stats_df = stats_df.append(series, ignore_index=True)
+                        series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
+                                            'TPR': accuracy_stats['test_tpr'][2], 'FPR': accuracy_stats['test_fpr'][2],
+                                            'Accuracy': accuracy_stats['test_acc'], 'SubType': 'HER2 OverExpression'})
+                        stats_df = stats_df.append(series, ignore_index=True)
+                        series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
+                                            'TPR': accuracy_stats['test_tpr'][3], 'FPR': accuracy_stats['test_fpr'][3],
+                                            'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Triple Negative'})
+                        stats_df = stats_df.append(series, ignore_index=True)
+        # plot TPRs based on site amount
+        g = sns.relplot(x="Site_amount", y="TPR", col="Algorithm", hue="SubType",  markers=True, kind="line", data=stats_df[stats_df.Learning_Rate == 0.0001])
+        g.fig.suptitle("TPR per Subtype")
+        g.savefig('./tpr_subtype_plot_nn.png')
     # plt.show()
 
 
@@ -1402,16 +1457,18 @@ if __name__ == '__main__':
         df_clinical = pd.read_csv(args.tsv_path, sep='\t', compression='gzip')
     if args.classify_triple_negative:
         svm_stats, rf_stats = classify_triple_negative(df_clinical)
+        stats_nn = run_nn(df_clinical, triple_negative=True)
         if args.dump_vis:
             stats_df = pd.DataFrame({'Value': np.stack([svm_stats, rf_stats]).ravel(),
                                      'Metric': ['Accuracy', 'TPR', 'TNR', 'Accuracy', 'TPR', 'TNR'],
                                      'Classifier': ['SVM', 'SVM', 'SVM',
                                                     'Random Forest', 'Random Forest', 'Random Forest']})
+            stats_df = pd.concat([stats_df, stats_nn], ignore_index=True)
             ax = sns.barplot(x="Classifier", y="Value", hue="Metric", data=stats_df)
             for p in ax.patches:
                 ax.annotate('{:.0f}%'.format(np.round(p.get_height()*100.0)), (p.get_x() + 0.2, p.get_height()),
-                                              ha='center', va='bottom',
-                                              color='black')
+                            ha='center', va='bottom',
+                            color='black')
             ax.set_title("Triple Negative Status")
             plt.savefig('./triple_negative_barplot.png')
     if args.classify_receptor:
@@ -1446,7 +1503,7 @@ if __name__ == '__main__':
     if args.run_GOAD:
         GOAD(df_clinical)
 
-    run_nn(df_clinical  )
+    # run_nn(df_clinical)
     # import pdb
     # pdb.set_trace()
     print('Finished')
