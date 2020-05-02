@@ -1375,8 +1375,8 @@ def run_nn(df, num_epochs=50, batch_size=8,
                 net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
                                                          batch_size, num_epochs, lr=lr, num_sites=data_amount,
                                                          random_data=False,
-                                                         do_conv=alg_type in ['CNN', 'CNN_Seperated'],
-                                                         do_sep=(alg_type == 'CNN_Seperated'), alg=alg_type,
+                                                         do_conv=alg_type in ['CNN', 'CNN_Sep'],
+                                                         do_sep=(alg_type == 'CNN_Sep'), alg=alg_type,
                                                          triple_negative=triple_negative)
                 if triple_negative:
                     series = pd.Series({'Value': accuracy_stats['test_acc'][0], 'Metric': 'Accuracy', 'Classifier': alg_type})
