@@ -110,8 +110,8 @@ class ClassifyNet2D(nn.Module):
                 self.layers.append(nn.MaxPool2d(2))
         for i in range(num_layers):
             if i == 0:
-
-                self.layers.append(nn.Linear(414*219*8, hidden_dim))
+                # self.layers.append(nn.Linear(414*219*8, hidden_dim))
+                self.layers.append(nn.Linear(106 * 55 * 8, hidden_dim))
             elif i == num_layers-1:
                 if num_classes == 2:
                     self.layers.append(nn.Linear(hidden_dim, 1))
@@ -1276,7 +1276,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
         if do_sep:
             net = ClassifyNet2DSep([829, 438], num_classes=num_classes).float()
         else:
-            net = ClassifyNet2D(hidden_dim=hidden_dim, num_layers=num_layers, num_conv_layers=2, num_classes=num_classes).float()
+            net = ClassifyNet2D(hidden_dim=hidden_dim, num_layers=num_layers, num_conv_layers=4, num_classes=num_classes).float()
     else:
         # num_sites = num_components
         net = ClassifyNet(hidden_dim=hidden_dim, num_layers=num_layers, num_conv_layers=0, num_classes=num_classes,
@@ -1409,8 +1409,8 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
                 _, y_pred_tags = torch.max(y_pred_softmax, dim=1)
             preds.append(y_pred_tags.item())
             lbls.append(y_test_batch.item())
-            if triple_negative and do_conv and not do_sep:
-                intermediate_preds.append(intermediate_pred.item())
+            # if triple_negative and do_conv and not do_sep:
+            #     intermediate_preds.append(intermediate_pred.item())
 
         test_sum_not_idx = np.zeros(num_classes)
         for i in range(num_classes):
@@ -1423,8 +1423,9 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
           f'Test Class TPR: {np.round(test_epoch_class_tp / test_epoch_class_count, decimals=3)}| '
           )
     if triple_negative:
-        plot_tsne(intermediate_preds, Y_test, reduced_classes=False, pca_dim=None, tsne_dim=2, perplexity=5, n_iter=10000,
-                  incorrect=None, incorrect_susp=None, title='Triple Negative CNN TSNE', triple_negative=True)
+        pass
+        # plot_tsne(intermediate_preds, Y_test, reduced_classes=False, pca_dim=None, tsne_dim=2, perplexity=5, n_iter=10000,
+        #           incorrect=None, incorrect_susp=None, title='Triple Negative CNN TSNE', triple_negative=True)
     else:
         print_stats('%s_%f_%s' % (alg , lr, num_sites), 'test', 'multiclass', preds, lbls, multiclass=True, cmap=plt.cm.Blues, classes=RECEPTOR_MULTICLASS_NAMES_REDUCED, normalize=True, dump_visualization=True)
     return net, accuracy_stats
