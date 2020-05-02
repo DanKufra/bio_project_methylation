@@ -126,7 +126,7 @@ class ClassifyNet2D(nn.Module):
             # pdb.set_trace()
             intermediate = None
             if i < len(self.layers) - 1:
-                print(x.shape)
+                # print(x.shape)
                 if i == self.num_conv_layers * 2 - 1 and self.num_conv_layers > 0:
                     # import pdb
                     # pdb.set_trace()
