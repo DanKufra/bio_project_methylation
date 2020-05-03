@@ -1459,9 +1459,9 @@ def run_nn(df, num_epochs=70, batch_size=8,
     else:
         X_train, Y_train, X_test, Y_test, X_val, Y_val, _, _ = shuffle_idx(X, Y, do_val_data=True)
 
-    print(np.unique(Y_train, return_counts=True))
-    print(np.unique(Y_val, return_counts=True))
-    print(np.unique(Y_test, return_counts=True))
+    # print(np.unique(Y_train, return_counts=True))
+    # print(np.unique(Y_val, return_counts=True))
+    # print(np.unique(Y_test, return_counts=True))
     if triple_negative:
         stats_df = pd.DataFrame(columns=['Value', 'Metric', 'Classifier'])
         for alg_type in [ 'FC', 'CNN', 'CNN_Sep']:
