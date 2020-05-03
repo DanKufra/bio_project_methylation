@@ -1275,7 +1275,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
         if do_sep:
             net = ClassifyNet2DSep([829, 438], num_classes=num_classes).float()
         else:
-            net = ClassifyNet2D(hidden_dim=hidden_dim, num_layers=num_layers, num_conv_layers=3, num_classes=num_classes).float()
+            net = ClassifyNet2D(hidden_dim=hidden_dim, num_layers=num_layers, num_conv_layers=2, num_classes=num_classes).float()
     else:
         # num_sites = num_components
         net = ClassifyNet(hidden_dim=hidden_dim, num_layers=num_layers, num_conv_layers=0, num_classes=num_classes,
