@@ -554,7 +554,7 @@ def shuffle_idx(X, Y, test_idx=None, do_val_data=False, seed=666):
         for unique_label in np.unique(Y):
             this_label = Y == unique_label
             num_choose = np.round(0.80 * (this_label).sum()).astype(np.uint32)
-            indices = np.random.choice(np.where(this_label)[0] & np.where(np.logical_not(test_idx)), num_choose, replace=False)
+            indices = np.random.choice(np.intersect1d(np.where(this_label)[0], np.where(np.logical_not(test_idx))[0]), num_choose, replace=False)
             train_idx[indices] = True
 
         # num_choose = np.round(0.80 * Y.shape[0] + test_idx.sum()).astype(np.uint32)
