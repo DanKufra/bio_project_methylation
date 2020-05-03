@@ -110,8 +110,8 @@ class ClassifyNet2D(nn.Module):
                 self.layers.append(nn.MaxPool2d(2))
         for i in range(num_layers):
             if i == 0:
-                # self.layers.append(nn.Linear(414*219*8, hidden_dim))
-                self.layers.append(nn.Linear(207 * 109 * 8, hidden_dim))
+                self.layers.append(nn.Linear(414*219*8, hidden_dim))
+                # self.layers.append(nn.Linear(207 * 109 * 8, hidden_dim))
                 # self.layers.append(nn.Linear(103 * 54 * 8, hidden_dim))
             elif i == num_layers-1:
                 if num_classes == 2:
@@ -131,9 +131,9 @@ class ClassifyNet2D(nn.Module):
                 if i == self.num_conv_layers * 2 - 1 and self.num_conv_layers > 0:
                     # import pdb
                     # pdb.set_trace()
-                    # x = x.view((-1, 414*219*8))
+                    x = x.view((-1, 414*219*8))
                     # x = x.view((-1, 103 * 54 * 8))
-                    x = x.view((-1, 207 * 109 * 8))
+                    # x = x.view((-1, 207 * 109 * 8))
                     intermediate = x
                 x = F.relu(layer(x))
             else:
@@ -534,7 +534,8 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
     return pred_test, pred_train, pred_test_rf, pred_train_rf, svm_stats, rf_stats
 
 
-def shuffle_idx(X, Y, test_idx=None, do_val_data=False):
+def shuffle_idx(X, Y, test_idx=None, do_val_data=False, seed=666):
+    np.seed(seed)
     if test_idx is None:
         train_idx = np.zeros_like(Y)
         if do_val_data:
@@ -1222,7 +1223,7 @@ class ClassifierDataset(Dataset):
 
 
 def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers, batch_size, num_epochs, lr, num_sites,
-                       random_data, do_conv, do_sep, alg, triple_negative=False):
+                       random_data, do_conv, do_sep, alg, triple_negative=False, do_val=True):
 
     print(f"Training:\n conv2d: {do_conv}, sep: {do_sep}, sites: {num_sites}, lr: {lr}, random_data: {random_data}")
 
@@ -1234,18 +1235,11 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
             torch.nn.init.xavier_uniform_(m.weight)
             m.bias.data.fill_(0.01)
 
-    # num_components = 64
-    # print(X_train.shape)
-    # print("Running PCA to %d components" % num_components)
-    # pca = PCA(n_components=num_components, random_state=666)
-    # X_train = pca.fit_transform(X_train)
-    # X_test = pca.transform(X_val)
-    # X_train = preprocessing.scale(X_train)
-    # X_val = preprocessing.scale(X_test)
 
     train_dataset = ClassifierDataset(torch.from_numpy(X_train).float(), torch.from_numpy(Y_train).long(), num_sites, conv2d=do_conv, random_data=random_data)
     test_dataset = ClassifierDataset(torch.from_numpy(X_test).float(), torch.from_numpy(Y_test).long(), num_sites, conv2d=do_conv, random_data=random_data)
-    val_dataset = ClassifierDataset(torch.from_numpy(X_val).float(), torch.from_numpy(Y_val).long(), num_sites, conv2d=do_conv, random_data=random_data)
+    if do_val:
+        val_dataset = ClassifierDataset(torch.from_numpy(X_val).float(), torch.from_numpy(Y_val).long(), num_sites, conv2d=do_conv, random_data=random_data)
 
     target_list = []
     for _, t in train_dataset:
@@ -1274,7 +1268,8 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
                               batch_size=batch_size,
                               sampler=weighted_sampler)
     test_loader = DataLoader(dataset=test_dataset, batch_size=1)
-    val_loader = DataLoader(dataset=val_dataset, batch_size=1)
+    if do_val:
+        val_loader = DataLoader(dataset=val_dataset, batch_size=1)
 
     if do_conv:
         if do_sep:
@@ -1327,52 +1322,60 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
             train_epoch_class_tp += np.array([i.item() for i in train_class_tp])
             train_epoch_class_fp += np.array([i.item() for i in train_class_fp])
             train_epoch_class_count += np.array([i.item() for i in train_class_count])
-        # VALIDATION
-        with torch.no_grad():
-            val_epoch_loss = 0
-            val_epoch_class_tp = np.zeros(num_classes)
-            val_epoch_class_fp = np.zeros(num_classes)
-            val_epoch_class_count = np.zeros(num_classes)
-            val_epoch_acc = np.zeros(1)
-            net.eval()
-            for X_val_batch, y_val_batch in val_loader:
-                count_val += 1
-                y_val_pred = net(X_val_batch)
-                if not triple_negative:
-                    y_val_pred = torch.reshape(y_val_pred, (-1, 4))
-                else:
-                    y_val_pred = y_val_pred.reshape(1)
-                    y_val_batch = y_val_batch.type(torch.FloatTensor)
-                val_loss = criterion(y_val_pred, y_val_batch)
-                val_class_tp, val_class_fp, val_class_count, val_acc = multi_acc(y_val_pred, y_val_batch, triple_negative)
+        if do_val:
+            # VALIDATION
+            with torch.no_grad():
+                val_epoch_loss = 0
+                val_epoch_class_tp = np.zeros(num_classes)
+                val_epoch_class_fp = np.zeros(num_classes)
+                val_epoch_class_count = np.zeros(num_classes)
+                val_epoch_acc = np.zeros(1)
+                net.eval()
+                for X_val_batch, y_val_batch in val_loader:
+                    count_val += 1
+                    y_val_pred = net(X_val_batch)
+                    if not triple_negative:
+                        y_val_pred = torch.reshape(y_val_pred, (-1, 4))
+                    else:
+                        y_val_pred = y_val_pred.reshape(1)
+                        y_val_batch = y_val_batch.type(torch.FloatTensor)
+                    val_loss = criterion(y_val_pred, y_val_batch)
+                    val_class_tp, val_class_fp, val_class_count, val_acc = multi_acc(y_val_pred, y_val_batch, triple_negative)
 
-                val_epoch_loss += val_loss.item()
-                val_epoch_acc += np.array(val_acc.item())
-                val_epoch_class_tp += np.array([i.item() for i in val_class_tp])
-                val_epoch_class_fp += np.array([i.item() for i in val_class_fp])
-                val_epoch_class_count += np.array([i.item() for i in val_class_count])
+                    val_epoch_loss += val_loss.item()
+                    val_epoch_acc += np.array(val_acc.item())
+                    val_epoch_class_tp += np.array([i.item() for i in val_class_tp])
+                    val_epoch_class_fp += np.array([i.item() for i in val_class_fp])
+                    val_epoch_class_count += np.array([i.item() for i in val_class_count])
+
+            val_sum_not_idx = np.zeros(num_classes)
+            for i in range(num_classes):
+                val_sum_not_idx[i] = np.sum([val_epoch_class_count[j] for j in np.arange(num_classes) if j != i])
+            loss_stats['val'].append(val_epoch_loss / len(val_loader))
+            accuracy_stats['val_class_TPR'] = val_epoch_class_tp / val_epoch_class_count
+            accuracy_stats['val_class_FPR'] = val_epoch_class_fp / val_sum_not_idx
+            accuracy_stats['val_acc'] = val_epoch_acc / count_val
 
         train_sum_not_idx = np.zeros(num_classes)
-        val_sum_not_idx = np.zeros(num_classes)
         for i in range(num_classes):
-            val_sum_not_idx[i] = np.sum([val_epoch_class_count[j] for j in np.arange(num_classes) if j != i])
             train_sum_not_idx[i] = np.sum([train_epoch_class_count[j] for j in np.arange(num_classes) if j != i])
 
         loss_stats['train'].append(train_epoch_loss / len(train_loader))
-        loss_stats['val'].append(val_epoch_loss / len(val_loader))
         accuracy_stats['train_class_TPR'] = train_epoch_class_tp / train_epoch_class_count
-        accuracy_stats['val_class_TPR'] = val_epoch_class_tp / val_epoch_class_count
         accuracy_stats['train_class_FPR'] = train_epoch_class_fp / train_sum_not_idx
-        accuracy_stats['val_class_FPR'] = val_epoch_class_fp / val_sum_not_idx
         accuracy_stats['train_acc'] = train_epoch_acc / count
-        accuracy_stats['val_acc'] = val_epoch_acc / count_val
-        scheduler.step(e)
-        tqdm.write(f'Epoch {e + 0:03}: | Train Loss: {train_epoch_loss / len(train_loader):.5f} | '
-                   f'Val Loss: {val_epoch_loss / len(val_loader):.5f} | '
-                   f'Train Class TPR: {np.round(train_epoch_class_tp / train_epoch_class_count, decimals=3)}| '
-                   f'Val Class TPR: {np.round(val_epoch_class_tp / val_epoch_class_count, decimals=3)}| '
-                   )
 
+        scheduler.step(e)
+        if do_val:
+            tqdm.write(f'Epoch {e + 0:03}: | Train Loss: {train_epoch_loss / len(train_loader):.5f} | '
+                       f'Val Loss: {val_epoch_loss / len(val_loader):.5f} | '
+                       f'Train Class TPR: {np.round(train_epoch_class_tp / train_epoch_class_count, decimals=3)}| '
+                       f'Val Class TPR: {np.round(val_epoch_class_tp / val_epoch_class_count, decimals=3)}| '
+                       )
+        else:
+            tqdm.write(f'Epoch {e + 0:03}: | Train Loss: {train_epoch_loss / len(train_loader):.5f} | '
+                       f'Train Class TPR: {np.round(train_epoch_class_tp / train_epoch_class_count, decimals=3)}| '
+                       )
     # TEST
     with torch.no_grad():
         test_epoch_loss = 0
@@ -1443,18 +1446,25 @@ def run_nn(df, num_epochs=70, batch_size=8,
         Y = np.zeros(df.shape[0])
         Y[df.pos] = 0
         Y[df.neg] = 1
+        test_idx = ((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos'])) & (~df['NA_pre_fish'])
+        test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) & (df['her2_ihc_level'] != -2) & (
+                    (df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
+
     else:
         Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
 
     X = df[df.columns[['cg' in col for col in df.columns]]].values.astype(np.float32) / 1000.0
-    X_train, Y_train, X_test, Y_test, X_val, Y_val, _, _ = shuffle_idx(X, Y, do_val_data=True)
+    if triple_negative:
+        X_train, Y_train, X_test, Y_test, _, _ = shuffle_idx(X, Y, do_val_data=False)
+    else:
+        X_train, Y_train, X_test, Y_test, X_val, Y_val, _, _ = shuffle_idx(X, Y, do_val_data=True)
 
     print(np.unique(Y_train, return_counts=True))
     print(np.unique(Y_val, return_counts=True))
     print(np.unique(Y_test, return_counts=True))
     if triple_negative:
         stats_df = pd.DataFrame(columns=['Value', 'Metric', 'Classifier'])
-        for alg_type in ['CNN', 'CNN_Sep', 'FC']:
+        for alg_type in [ 'FC', 'CNN', 'CNN_Sep']:
             for data_amount in [X_train.shape[1]]:
                 lr = 1e-5
                 net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
@@ -1462,7 +1472,7 @@ def run_nn(df, num_epochs=70, batch_size=8,
                                                          random_data=False,
                                                          do_conv=alg_type in ['CNN', 'CNN_Sep'],
                                                          do_sep=(alg_type == 'CNN_Sep'), alg=alg_type,
-                                                         triple_negative=triple_negative)
+                                                         triple_negative=triple_negative, do_val=False)
                 if triple_negative:
                     series = pd.Series({'Value': accuracy_stats['test_acc'][0], 'Metric': 'Accuracy', 'Classifier': alg_type})
                     stats_df = stats_df.append(series, ignore_index=True)
@@ -1549,7 +1559,8 @@ if __name__ == '__main__':
                                      'Classifier': ['SVM', 'SVM', 'SVM',
                                                     'Random Forest', 'Random Forest', 'Random Forest']})
             stats_df = pd.concat([stats_df, stats_nn], ignore_index=True)
-            ax = sns.barplot(x="Classifier", y="Value", hue="Metric", data=stats_df)
+            sns.set(style="whitegrid")
+            ax = sns.barplot(x="Classifier", y="Value", hue="Metric", data=stats_df, palette='muted')
             for p in ax.patches:
                 ax.annotate('{:.0f}%'.format(np.round(p.get_height()*100.0)), (p.get_x() + 0.2, p.get_height()),
                             ha='center', va='bottom',
