@@ -535,7 +535,7 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
 
 
 def shuffle_idx(X, Y, test_idx=None, do_val_data=False, seed=666):
-    np.seed(seed)
+    np.random.seed(seed)
     if test_idx is None:
         train_idx = np.zeros_like(Y)
         if do_val_data:
