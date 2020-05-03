@@ -551,8 +551,14 @@ def shuffle_idx(X, Y, test_idx=None, do_val_data=False, seed=666):
             train_idx[indices] = True
     else:
         train_idx = np.zeros_like(test_idx)
-        num_choose = np.round(0.70 * Y.shape[0] + test_idx.sum()).astype(np.uint32)
-        train_idx[np.random.choice(np.arange(0, Y.shape[0])[np.logical_not(test_idx)], num_choose, replace=False)] = True
+        for unique_label in np.unique(Y):
+            this_label = Y == unique_label
+            num_choose = np.round(0.80 * (this_label).sum()).astype(np.uint32)
+            indices = np.random.choice(np.where(this_label)[0] & np.where(np.logical_not(test_idx)), num_choose, replace=False)
+            train_idx[indices] = True
+
+        # num_choose = np.round(0.80 * Y.shape[0] + test_idx.sum()).astype(np.uint32)
+        # train_idx[np.random.choice(np.arange(0, Y.shape[0])[np.logical_not(test_idx)], num_choose, replace=False)] = True
 
     shuf_test_idx = np.random.permutation(np.where(np.logical_not(train_idx))[0])
     shuf_train_idx = np.random.permutation(np.where(train_idx)[0])
@@ -1446,15 +1452,15 @@ def run_nn(df, num_epochs=70, batch_size=8,
         Y = np.zeros(df.shape[0])
         Y[df.pos] = 0
         Y[df.neg] = 1
-        test_idx = ((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos'])) & (~df['NA_pre_fish'])
-        test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) & (df['her2_ihc_level'] != -2) & (
-                    (df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
 
     else:
         Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
 
     X = df[df.columns[['cg' in col for col in df.columns]]].values.astype(np.float32) / 1000.0
     if triple_negative:
+        test_idx = ((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos'])) & (~df['NA_pre_fish'])
+        test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) & (df['her2_ihc_level'] != -2) &
+                               ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
         X_train, Y_train, X_test, Y_test, _, _ = shuffle_idx(X, Y, test_idx, do_val_data=False)
         X_val, Y_val = None, None
     else:
