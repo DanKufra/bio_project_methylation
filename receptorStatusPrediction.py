@@ -534,7 +534,7 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
     return pred_test, pred_train, pred_test_rf, pred_train_rf, svm_stats, rf_stats
 
 
-def shuffle_idx(X, Y, test_idx=None, do_val_data=False, seed=666):
+def shuffle_idx(X, Y, test_idx=None, do_val_data=False, seed=777):
     np.random.seed(seed)
     if test_idx is None:
         train_idx = np.zeros_like(Y)
@@ -1444,7 +1444,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     return net, accuracy_stats
 
 
-def run_nn(df, num_epochs=200, batch_size=8,
+def run_nn(df, num_epochs=50, batch_size=32,
            hidden_dim=128, num_layers=3, seed=666, triple_negative=False):
     if seed:
         np.random.seed(seed)
