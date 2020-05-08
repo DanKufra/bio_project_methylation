@@ -514,7 +514,7 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
 
     print("Running SVM on data - predict %s :" % receptor)
     # clf = SVC(class_weight='balanced', kernel='poly', degree=2)
-    clf = SVC(class_weight='balanced', kernel='linear', random_state=666)
+    clf = SVC(kernel='linear', random_state=666)
     clf.fit(X_train, Y_train)
 
     pred_test = clf.predict(X_test)
@@ -524,7 +524,7 @@ def classify(receptor, X_test, X_train, Y_test, Y_train, multiclass=False, class
     svm_stats = print_stats('SVM', 'test', receptor, pred_test, Y_test, multiclass, classes=class_names, dump_visualization=dump_visualization)
 
     print("Running random forest  - predict %s :" % receptor)
-    clf_rf = RandomForestClassifier(max_depth=3, n_estimators=100, class_weight='balanced', random_state=666)
+    clf_rf = RandomForestClassifier(max_depth=2, n_estimators=100, random_state=666)
     clf_rf = clf_rf.fit(X_train, Y_train)
     pred_test_rf = clf_rf.predict(X_test)
     pred_train_rf = clf_rf.predict(X_train)
