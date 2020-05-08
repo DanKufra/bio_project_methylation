@@ -1444,7 +1444,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     return net, accuracy_stats
 
 
-def run_nn(df, num_epochs=50, batch_size=32,
+def run_nn(df, num_epochs=100, batch_size=32,
            hidden_dim=256, num_layers=3, seed=666, triple_negative=False):
     if seed:
         np.random.seed(seed)
@@ -1475,7 +1475,7 @@ def run_nn(df, num_epochs=50, batch_size=32,
         stats_df = pd.DataFrame(columns=['Value', 'Metric', 'Classifier'])
         for alg_type in ['FC', 'CNN', 'CNN_Sep']:
             for data_amount in [X_train.shape[1]]:
-                lr = 1e-5
+                lr = 1e-6
                 net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
                                                          batch_size, num_epochs, lr=lr, num_sites=data_amount,
                                                          random_data=False,
