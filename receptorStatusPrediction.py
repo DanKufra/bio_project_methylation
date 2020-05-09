@@ -97,6 +97,7 @@ class ClassifyNet2D(nn.Module):
         self.layers = nn.ModuleList()
         self.num_conv_layers = num_conv_layers
         self.drop_layer = nn.Dropout(p=0.2)
+        hidden_dim = 64
         for i in range(self.num_conv_layers):
             if i == 0:
                 self.layers.append(nn.Conv2d(in_channels=1, out_channels=int(32),
