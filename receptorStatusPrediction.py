@@ -96,6 +96,7 @@ class ClassifyNet2D(nn.Module):
         super(ClassifyNet2D, self).__init__()
         self.layers = nn.ModuleList()
         self.num_conv_layers = num_conv_layers
+        self.drop_layer = nn.Dropout(p=0.2)
         for i in range(self.num_conv_layers):
             if i == 0:
                 self.layers.append(nn.Conv2d(in_channels=1, out_channels=int(32),
@@ -135,6 +136,7 @@ class ClassifyNet2D(nn.Module):
                     # x = x.view((-1, 103 * 54 * 8))
                     # x = x.view((-1, 207 * 109 * 8))
                     intermediate = x
+                x = self.drop_layer(x)
                 x = F.relu(layer(x))
             else:
                 x = layer(x)
@@ -1445,7 +1447,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
 
 
 def run_nn(df, num_epochs=100, batch_size=32,
-           hidden_dim=256, num_layers=3, seed=666, triple_negative=False):
+           hidden_dim=128, num_layers=3, seed=666, triple_negative=False):
     if seed:
         np.random.seed(seed)
     if triple_negative:
