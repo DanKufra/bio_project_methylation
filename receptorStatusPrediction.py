@@ -654,10 +654,10 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
     2. Observations where IHC level and IHC status did not match
     """
 
-    test_idx = ((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos'])) & (~df['NA_pre_fish'])
-    test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) & (df['her2_ihc_level'] != -2) & ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
+    # test_idx = ((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos'])) & (~df['NA_pre_fish'])
+    # test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) & (df['her2_ihc_level'] != -2) & ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
 
-    X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, test_idx)
+    X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, None)
 
     if run_smote:
         sm = SMOTE(sampling_strategy='auto', k_neighbors=5, random_state=999)
@@ -1461,10 +1461,10 @@ def run_nn(df, num_epochs=20, batch_size=32,
 
     X = df[df.columns[['cg' in col for col in df.columns]]].values.astype(np.float32) / 1000.0
     if triple_negative:
-        test_idx = ((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos'])) & (~df['NA_pre_fish'])
-        test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) & (df['her2_ihc_level'] != -2) &
-                               ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
-        X_train, Y_train, X_test, Y_test, _, _ = shuffle_idx(X, Y, test_idx, do_val_data=False)
+        # test_idx = ((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos'])) & (~df['NA_pre_fish'])
+        # test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) & (df['her2_ihc_level'] != -2) &
+        #                        ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
+        X_train, Y_train, X_test, Y_test, _, _ = shuffle_idx(X, Y, None, do_val_data=False)
         X_val, Y_val = None, None
     else:
         X_train, Y_train, X_test, Y_test, X_val, Y_val, _, _ = shuffle_idx(X, Y, do_val_data=True)
