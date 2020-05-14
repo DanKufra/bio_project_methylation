@@ -656,6 +656,9 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
 
     test_idx = ((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos'])) & (~df['NA_pre_fish'])
     test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) & (df['her2_ihc_level'] != -2) & ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
+
+    X = X[~test_idx]
+    Y = Y[~test_idx]
     test_idx = None
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, test_idx)
 
@@ -1464,7 +1467,9 @@ def run_nn(df, num_epochs=60, batch_size=32,
         test_idx = ((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos'])) & (~df['NA_pre_fish'])
         test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) & (df['her2_ihc_level'] != -2) &
                                ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
-        test_idx=None
+        X = X[~test_idx]
+        Y = Y[~test_idx]
+        test_idx = None
         X_train, Y_train, X_test, Y_test, _, _ = shuffle_idx(X, Y, test_idx, do_val_data=False)
         X_val, Y_val = None, None
     else:
