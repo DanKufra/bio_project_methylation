@@ -1447,7 +1447,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     return net, accuracy_stats
 
 
-def run_nn(df, num_epochs=100, batch_size=32,
+def run_nn(df, num_epochs=20, batch_size=32,
            hidden_dim=128, num_layers=3, seed=666, triple_negative=False):
     if seed:
         np.random.seed(seed)
