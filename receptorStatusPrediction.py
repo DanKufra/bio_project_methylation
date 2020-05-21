@@ -658,8 +658,7 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
     test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) & (df['her2_ihc_level'] != -2) & ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
 
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, test_idx)
-    import pdb
-    pdb.set_trace()
+
     X_test = X[test_idx]
     Y_test = Y[test_idx]
     if run_smote:
