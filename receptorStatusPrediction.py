@@ -1494,7 +1494,7 @@ def run_nn(df, num_epochs=60, batch_size=32,
             for data_amount in [X_train.shape[1]]:
                 lr = 1e-5
                 if alg_type == 'CNN':
-                    lr = 1e-4
+                    num_layers = 2
                 net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
                                                          batch_size, num_epochs, lr=lr, num_sites=data_amount,
                                                          random_data=False,
