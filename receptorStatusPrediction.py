@@ -657,11 +657,10 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
     test_idx = ((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos'])) & (~df['NA_pre_fish'])
     test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) & (df['her2_ihc_level'] != -2) & ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
 
-    X = X[~test_idx]
-    Y = Y[~test_idx]
-    test_idx = None
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, test_idx)
 
+    X_test = X[test_idx]
+    Y_test = Y[test_idx]
     if run_smote:
         sm = SMOTE(sampling_strategy='auto', k_neighbors=5, random_state=999)
         X_train, Y_train = sm.fit_resample(X_train, Y_train)
@@ -1467,11 +1466,12 @@ def run_nn(df, num_epochs=60, batch_size=32,
         test_idx = ((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos'])) & (~df['NA_pre_fish'])
         test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) & (df['her2_ihc_level'] != -2) &
                                ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
-        X = X[~test_idx]
-        Y = Y[~test_idx]
-        test_idx = None
+
         X_train, Y_train, X_test, Y_test, _, _ = shuffle_idx(X, Y, test_idx, do_val_data=False)
         X_val, Y_val = None, None
+
+        X_test = X[test_idx]
+        Y_test = Y[test_idx]
     else:
         X_train, Y_train, X_test, Y_test, X_val, Y_val, _, _ = shuffle_idx(X, Y, do_val_data=True)
 
@@ -1602,7 +1602,8 @@ if __name__ == '__main__':
                                      'Receptor': ['ER', 'ER', 'ER', 'ER', 'ER', 'ER',
                                                   'PR', 'PR', 'PR', 'PR', 'PR', 'PR',
                                                   'HER2', 'HER2', 'HER2', 'HER2', 'HER2', 'HER2']})
-            g = sns.catplot(x="Receptor", y="Value", hue="Metric", col="Classifier", data=stats_df, kind="bar", height=4, aspect=.7)
+            sns.set(style="whitegrid")
+            g = sns.catplot(x="Receptor", y="Value", hue="Metric", col="Classifier", data=stats_df, kind="bar", height=4, aspect=.7, palette='muted')
             plt.subplots_adjust(top=0.85)
             for index in range(2):
                 for p in g.axes[0][index].patches:
