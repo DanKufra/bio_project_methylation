@@ -762,7 +762,7 @@ def classify_receptor(df, receptor, print_wrong=False):
         print(patients_wrong_train_rf.join(er_pr_mismatch, lsuffix='_new', how='inner'))
         print(patients_wrong_test_rf.join(er_pr_mismatch, lsuffix='_new', how='inner'))
 
-    lr = 1e-4
+    lr = 1e-6
     alg_type = 'FC'
     net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, None, None, 128, 3,
                                              16, 40, lr=lr, num_sites=X_train.shape[1],
@@ -1494,7 +1494,7 @@ def run_nn(df, num_epochs=60, batch_size=32,
             for data_amount in [X_train.shape[1]]:
                 lr = 1e-5
                 if alg_type == 'CNN':
-                    lr = 1e-6
+                    lr = 1e-4
                 net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
                                                          batch_size, num_epochs, lr=lr, num_sites=data_amount,
                                                          random_data=False,
