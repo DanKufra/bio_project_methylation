@@ -124,10 +124,10 @@ class ClassifyNet2D(nn.Module):
                 self.layers.append(nn.Linear(hidden_dim, hidden_dim))
 
     def forward(self, x):
+        intermediate = None
         for i, layer in enumerate(self.layers):
             # import pdb
             # pdb.set_trace()
-            intermediate = None
             if i < len(self.layers) - 1:
                 # print(x.shape)
                 if i == self.num_conv_layers * 2 - 1 and self.num_conv_layers > 0:
@@ -137,11 +137,13 @@ class ClassifyNet2D(nn.Module):
                     # x = x.view((-1, 103 * 54 * 8))
                     # x = x.view((-1, 207 * 109 * 8))
                     intermediate = x
+                    # import pdb
+                    # pdb.set_trace()
                 x = self.drop_layer(x)
                 x = F.relu(layer(x))
             else:
                 x = layer(x)
-        return x# intermediate
+        return x, intermediate
 
 
 class ClassifyNet(nn.Module):
@@ -659,8 +661,8 @@ def classify_triple_negative(df, print_wrong=True, run_smote=False):
 
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y, test_idx)
 
-    X_test = X[test_idx]
-    Y_test = Y[test_idx]
+    # X_test = X[test_idx]
+    # Y_test = Y[test_idx]
     if run_smote:
         sm = SMOTE(sampling_strategy='auto', k_neighbors=5, random_state=999)
         X_train, Y_train = sm.fit_resample(X_train, Y_train)
@@ -863,61 +865,6 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
         else:
             df_tsne = pd.DataFrame(X_TSNE, columns=df_tsne_cols)
             df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
-            ax = plt.figure(figsize=(16, 10))
-            sns.scatterplot(
-                x="x", y="y",
-                hue="label",
-                palette=sns.color_palette("hls", len(df_tsne['label'].unique())),
-                data=df_tsne,
-                legend='full',
-                alpha=0.7)
-    else:
-        for i, c in zip(set(class_labels.values()), colors):
-            ax.scatter(xs=X_TSNE[Y == i, 0], ys=X_TSNE[Y == i, 1], zs=X_TSNE[Y == i, 2], c=c, label=names[i])
-        plt.legend()
-    if title is not None:
-        ax.set_title(title)
-    plt.savefig(('%s.png' % title).replace(' ', '_'))
-    plt.close(fig)
-
-
-def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40, n_iter=300,
-              incorrect=None, incorrect_susp=None, title=None, triple_negative=False):
-
-    pca = PCA(n_components=pca_dim)
-    X_PCA = pca.fit_transform(X)
-    df_tsne_cols = ['x', 'y']
-    if tsne_dim == 3:
-        X_TSNE = TSNE(n_components=3, verbose=1, perplexity=perplexity, n_iter=n_iter).fit_transform(X_PCA)
-        ax = plt.figure(figsize=(6, 5)).gca(projection='3d')
-        df_tsne_cols.append('z')
-    else:
-        X_TSNE = TSNE(n_components=2, verbose=1, perplexity=perplexity, n_iter=n_iter).fit_transform(X_PCA)
-
-    if reduced_classes:
-        colors = 'r', 'g', 'b', 'c'
-        class_labels = CLASSES_REDUCED
-        names = RECEPTOR_MULTICLASS_NAMES_REDUCED
-    else:
-        colors = 'r', 'g', 'b', 'c', 'y', 'magenta', 'purple', 'orange'
-        class_labels = CLASSES
-        names = RECEPTOR_MULTICLASS_NAMES
-
-    if triple_negative:
-        names = ["Some Positive", "Triple Negative"]
-
-    if tsne_dim == 2:
-        if incorrect is not None:
-            df_tsne = pd.DataFrame(X_TSNE, columns=df_tsne_cols)
-            df_tsne['error'] = incorrect
-
-            df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
-            df_tsne['error'].iloc[np.where(df_tsne['error'] == 0)] = 'Correct'
-            df_tsne['error'].iloc[np.where(df_tsne['error'] == 1)] = 'Error'
-            style_order = ['Correct', 'Error']
-            if incorrect_susp is not None:
-                df_tsne['error'].iloc[np.where(incorrect_susp)] = 'Suspicious Error'
-                style_order.append('Suspicious Error')
             fig = plt.figure(figsize=(16, 10))
             ax = fig.subplots()
             sns.scatterplot(
@@ -926,20 +873,6 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
                 palette=sns.color_palette("hls", len(df_tsne['label'].unique())),
                 data=df_tsne,
                 legend='full',
-                alpha=0.7,
-                style='error',
-                style_order=style_order,
-                s=10)
-        else:
-            df_tsne = pd.DataFrame(X_TSNE, columns=df_tsne_cols)
-            df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
-            ax = plt.figure(figsize=(16, 10))
-            sns.scatterplot(
-                x="x", y="y",
-                hue="label",
-                palette=sns.color_palette("hls", len(df_tsne['label'].unique())),
-                data=df_tsne,
-                legend='full',
                 alpha=0.7)
     else:
         for i, c in zip(set(class_labels.values()), colors):
@@ -949,6 +882,7 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
         ax.set_title(title)
     plt.savefig(('%s.png' % title).replace(' ', '_'))
     plt.close(fig)
+
 
 def transform_samples_array(X_array, num_transformations, transform_dim, seed):
     X_transformed_array = []
@@ -1328,7 +1262,11 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
         for X_train_batch, y_train_batch in train_loader:
             count += 1
             optimizer.zero_grad()
-            y_train_pred = net(X_train_batch).squeeze()
+            if triple_negative and do_conv and not do_sep:
+                y_train_pred, _ = net(X_train_batch)
+                y_train_pred = y_train_pred.squeeze()
+            else:
+                y_train_pred = net(X_train_batch).squeeze()
             if triple_negative:
                 y_train_batch = y_train_batch.type(torch.FloatTensor)
             train_loss = criterion(y_train_pred, y_train_batch)
@@ -1352,7 +1290,10 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
                 net.eval()
                 for X_val_batch, y_val_batch in val_loader:
                     count_val += 1
-                    y_val_pred = net(X_val_batch)
+                    if triple_negative and do_conv and not do_sep:
+                        y_val_pred, _ = net(X_val_batch)
+                    else:
+                        y_val_pred = net(X_val_batch)
                     if not triple_negative:
                         y_val_pred = torch.reshape(y_val_pred, (-1, 4))
                     else:
@@ -1410,10 +1351,10 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
             intermediate_preds = []
         for X_test_batch, y_test_batch in test_loader:
             count_test += 1
-            # if triple_negative and do_conv and not do_sep:
-            #     y_test_pred, intermediate_pred = net(X_test_batch)
-            # else:
-            y_test_pred = net(X_test_batch)
+            if triple_negative and do_conv and not do_sep:
+                y_test_pred, intermediate_pred = net(X_test_batch)
+            else:
+                y_test_pred = net(X_test_batch)
             if not triple_negative:
                 y_test_pred = torch.reshape(y_test_pred, (-1, 4))
             else:
@@ -1435,8 +1376,8 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
                 _, y_pred_tags = torch.max(y_pred_softmax, dim=1)
             preds.append(y_pred_tags.item())
             lbls.append(y_test_batch.item())
-            # if triple_negative and do_conv and not do_sep:
-            #     intermediate_preds.append(intermediate_pred.item())
+            if triple_negative and do_conv and not do_sep:
+                intermediate_preds.append(np.array(intermediate_pred).ravel())
 
         test_sum_not_idx = np.zeros(num_classes)
         for i in range(num_classes):
@@ -1448,16 +1389,16 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
     print(f'Test Loss: {test_epoch_loss / len(test_loader):.5f} | '
           f'Test Class TPR: {np.round(test_epoch_class_tp / test_epoch_class_count, decimals=3)}| '
           )
-    if triple_negative:
-        pass
-        # plot_tsne(intermediate_preds, Y_test, reduced_classes=False, pca_dim=None, tsne_dim=2, perplexity=5, n_iter=10000,
-        #           incorrect=None, incorrect_susp=None, title='Triple Negative CNN TSNE', triple_negative=True)
+    if triple_negative and do_conv and not do_sep:
+        intermediate_preds = np.array(intermediate_preds)
+        plot_tsne(intermediate_preds, Y_test, reduced_classes=False, pca_dim=None, tsne_dim=2, perplexity=5, n_iter=10000,
+                  incorrect=None, incorrect_susp=None, title='Triple Negative CNN TSNE', triple_negative=True)
     else:
         print_stats('%s_%f_%s' % (alg , lr, num_sites), 'test', 'multiclass', preds, lbls, multiclass=True, cmap=plt.cm.Blues, classes=RECEPTOR_MULTICLASS_NAMES_REDUCED, normalize=True, dump_visualization=True)
     return net, accuracy_stats
 
 
-def run_nn(df, num_epochs=60, batch_size=32,
+def run_nn(df, num_epochs=50, batch_size=32,
            hidden_dim=128, num_layers=3, seed=666, triple_negative=False):
     if seed:
         np.random.seed(seed)
@@ -1478,8 +1419,8 @@ def run_nn(df, num_epochs=60, batch_size=32,
         X_train, Y_train, X_test, Y_test, _, _ = shuffle_idx(X, Y, test_idx, do_val_data=False)
         X_val, Y_val = None, None
 
-        X_test = X[test_idx]
-        Y_test = Y[test_idx]
+        # X_test = X[test_idx]
+        # Y_test = Y[test_idx]
     else:
         X_train, Y_train, X_test, Y_test, X_val, Y_val, _, _ = shuffle_idx(X, Y, do_val_data=True)
 
@@ -1582,13 +1523,47 @@ if __name__ == '__main__':
         svm_stats, rf_stats = classify_triple_negative(df_clinical)
         stats_nn = run_nn(df_clinical, triple_negative=True)
         if args.dump_vis:
+            # stats_df = pd.DataFrame(columns=['Value', 'Metric', 'Classifier'])
+            # series = pd.Series({'Value': 0.87, 'Metric': 'Accuracy', 'Classifier': 'SVM'})
+            # stats_df = stats_df.append(series, ignore_index=True)
+            # series = pd.Series({'Value': 0.80, 'Metric': 'TPR', 'Classifier': 'SVM'})
+            # stats_df = stats_df.append(series, ignore_index=True)
+            # series = pd.Series({'Value': 0.88, 'Metric': 'TNR', 'Classifier': 'SVM'})
+            # stats_df = stats_df.append(series, ignore_index=True)
+            # series = pd.Series({'Value': 0.92, 'Metric': 'Accuracy', 'Classifier': 'RF'})
+            # stats_df = stats_df.append(series, ignore_index=True)
+            # series = pd.Series({'Value': 0.90, 'Metric': 'TPR', 'Classifier': 'RF'})
+            # stats_df = stats_df.append(series, ignore_index=True)
+            # series = pd.Series({'Value': 0.92, 'Metric': 'TNR', 'Classifier': 'RF'})
+            # stats_df = stats_df.append(series, ignore_index=True)
+            # series = pd.Series({'Value': 0.92, 'Metric': 'Accuracy', 'Classifier': 'FC'})
+            # stats_df = stats_df.append(series, ignore_index=True)
+            # series = pd.Series({'Value': 0.91, 'Metric': 'TPR', 'Classifier': 'FC'})
+            # stats_df = stats_df.append(series, ignore_index=True)
+            # series = pd.Series({'Value': 0.95, 'Metric': 'TNR', 'Classifier': 'FC'})
+            # stats_df = stats_df.append(series, ignore_index=True)
+            # series = pd.Series({'Value': 0.95, 'Metric': 'Accuracy', 'Classifier': 'CNN'})
+            # stats_df = stats_df.append(series, ignore_index=True)
+            # series = pd.Series({'Value': 0.96, 'Metric': 'TPR', 'Classifier': 'CNN'})
+            # stats_df = stats_df.append(series, ignore_index=True)
+            # series = pd.Series({'Value': 0.85, 'Metric': 'TNR', 'Classifier': 'CNN'})
+            # stats_df = stats_df.append(series, ignore_index=True)
+            # series = pd.Series({'Value': 0.96, 'Metric': 'Accuracy', 'Classifier': 'CNN_Sep'})
+            # stats_df = stats_df.append(series, ignore_index=True)
+            # series = pd.Series({'Value': 0.96, 'Metric': 'TPR', 'Classifier': 'CNN_Sep'})
+            # stats_df = stats_df.append(series, ignore_index=True)
+            # series = pd.Series({'Value': 0.95, 'Metric': 'TNR', 'Classifier': 'CNN_Sep'})
+            # stats_df = stats_df.append(series, ignore_index=True)
             stats_df = pd.DataFrame({'Value': np.stack([svm_stats, rf_stats]).ravel(),
                                      'Metric': ['Accuracy', 'TPR', 'TNR', 'Accuracy', 'TPR', 'TNR'],
                                      'Classifier': ['SVM', 'SVM', 'SVM',
                                                     'Random Forest', 'Random Forest', 'Random Forest']})
             stats_df = pd.concat([stats_df, stats_nn], ignore_index=True)
             sns.set(style="whitegrid")
+            plt.figure(figsize=(12, 6))
             ax = sns.barplot(x="Classifier", y="Value", hue="Metric", data=stats_df, palette='muted')
+            # 5. Place legend to the right
+            plt.legend(bbox_to_anchor=(1, 1), loc=2)
             for p in ax.patches:
                 ax.annotate('{:.0f}%'.format(np.round(p.get_height()*100.0)), (p.get_x() + 0.2, p.get_height()),
                             ha='center', va='bottom',
