@@ -861,7 +861,7 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
                 alpha=0.7,
                 style='error',
                 style_order=style_order,
-                s=10)
+                s=14)
         else:
             df_tsne = pd.DataFrame(X_TSNE, columns=df_tsne_cols)
             df_tsne['label'] = [names[int(Y[i])] for i in np.arange(Y.shape[0])]
@@ -1391,7 +1391,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
           )
     if triple_negative and do_conv and not do_sep:
         intermediate_preds = np.array(intermediate_preds)
-        plot_tsne(intermediate_preds, Y_test, reduced_classes=False, pca_dim=None, tsne_dim=2, perplexity=5, n_iter=10000,
+        plot_tsne(intermediate_preds, Y_test, reduced_classes=False, pca_dim=64, tsne_dim=2, perplexity=5, n_iter=10000,
                   incorrect=(preds != lbls), incorrect_susp=None, title='Triple Negative CNN TSNE', triple_negative=True)
     elif not triple_negative:
         print_stats('%s_%f_%s' % (alg , lr, num_sites), 'test', 'multiclass', preds, lbls, multiclass=True, cmap=plt.cm.Blues, classes=RECEPTOR_MULTICLASS_NAMES_REDUCED, normalize=True, dump_visualization=True)
