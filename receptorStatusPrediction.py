@@ -1262,7 +1262,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
         for X_train_batch, y_train_batch in train_loader:
             count += 1
             optimizer.zero_grad()
-            if triple_negative and do_conv and not do_sep:
+            if do_conv and not do_sep:
                 y_train_pred, _ = net(X_train_batch)
                 y_train_pred = y_train_pred.squeeze()
             else:
@@ -1290,7 +1290,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
                 net.eval()
                 for X_val_batch, y_val_batch in val_loader:
                     count_val += 1
-                    if triple_negative and do_conv and not do_sep:
+                    if do_conv and not do_sep:
                         y_val_pred, _ = net(X_val_batch)
                     else:
                         y_val_pred = net(X_val_batch)
@@ -1351,7 +1351,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
             intermediate_preds = []
         for X_test_batch, y_test_batch in test_loader:
             count_test += 1
-            if triple_negative and do_conv and not do_sep:
+            if do_conv and not do_sep:
                 y_test_pred, intermediate_pred = net(X_test_batch)
             else:
                 y_test_pred = net(X_test_batch)
