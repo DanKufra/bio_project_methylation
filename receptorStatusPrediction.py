@@ -1461,7 +1461,7 @@ def run_nn(df, num_epochs=50, batch_size=32,
                     continue
                 for lr in [1e-5]:
                     if alg_type in ['Conv']:
-                        lr = 1e-4
+                        lr = 1e-6
                     net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
                                                              batch_size, num_epochs, lr=lr, num_sites=data_amount,
                                                              random_data=alg_type == 'FC_random',
