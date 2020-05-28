@@ -1394,11 +1394,11 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
         plot_tsne(intermediate_preds, Y_test, reduced_classes=False, pca_dim=64, tsne_dim=2, perplexity=5, n_iter=10000,
                   incorrect=((np.array(preds) > 0.5) != np.array(lbls)), incorrect_susp=None, title='Triple Negative CNN TSNE', triple_negative=True)
     elif not triple_negative:
-        print_stats('%s_%f_%s' % (alg , lr, num_sites), 'test', 'multiclass', preds, lbls, multiclass=True, cmap=plt.cm.Blues, classes=RECEPTOR_MULTICLASS_NAMES_REDUCED, normalize=True, dump_visualization=True)
+        print_stats('%s_%f_%s' % (alg, lr, num_sites), 'test', 'multiclass', preds, lbls, multiclass=True, cmap=plt.cm.Blues, classes=RECEPTOR_MULTICLASS_NAMES_REDUCED, normalize=True, dump_visualization=True)
     return net, accuracy_stats
 
 
-def run_nn(df, num_epochs=20, batch_size=32,
+def run_nn(df, num_epochs=50, batch_size=32,
            hidden_dim=128, num_layers=3, seed=666, triple_negative=False):
     if seed:
         np.random.seed(seed)
@@ -1458,7 +1458,7 @@ def run_nn(df, num_epochs=20, batch_size=32,
             for data_amount in [1000, 10000, 50000, 150000, X_train.shape[1]]:
                 if alg_type in ['Conv', 'Conv_Sep'] and data_amount != X_train.shape[1]:
                     continue
-                for lr in [1e-5]:
+                for lr in [1e-5, 1e-6]:
                     net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
                                                              batch_size, num_epochs, lr=lr, num_sites=data_amount,
                                                              random_data=alg_type == 'FC_random',
@@ -1600,6 +1600,8 @@ if __name__ == '__main__':
             g.savefig('./receptor_barplot.png')
     if args.classify_multiclass:
         classify_multiclass(df_clinical, args.dump_vis)
+        run_nn(df_clinical, num_epochs=50, batch_size=32,
+               hidden_dim=128, num_layers=3, seed=666, triple_negative=False)
     if args.run_GOAD:
         GOAD(df_clinical)
 
