@@ -1455,39 +1455,40 @@ def run_nn(df, num_epochs=50, batch_size=32,
                                          'TPR', 'FPR', 'Accuracy', 'SubType'])
         # for alg_type in ['Conv_Sep', 'Conv']:#, 'FC_consecutive', 'FC_random']:
         # for alg_type in ['FC_consecutive', 'FC_random', 'Conv_Sep', 'Conv']:
-        for alg_type in ['FC_consecutive', 'Conv_Sep', 'Conv']:
+        for alg_type in ['Conv', 'FC_consecutive', 'Conv_Sep']:
             for data_amount in [10000, 50000, 150000, X_train.shape[1]]:
                 if alg_type in ['Conv', 'Conv_Sep'] and data_amount != X_train.shape[1]:
                     continue
                 for lr in [1e-5]:
+                    if alg_type in ['Conv']:
+                        lr = 1e-4
                     net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
                                                              batch_size, num_epochs, lr=lr, num_sites=data_amount,
                                                              random_data=alg_type == 'FC_random',
                                                              do_conv=alg_type in ['Conv', 'Conv_Sep'],
                                                              do_sep=(alg_type == 'Conv_Sep'), alg=alg_type,
                                                              triple_negative=triple_negative)
-                    if not triple_negative:
-                        torch.save(net.state_dict(), './%s_%f_%dnet'%(alg_type, lr, data_amount))
-                        series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
-                                            'TPR': accuracy_stats['test_tpr'][0], 'FPR': accuracy_stats['test_fpr'][0],
-                                            'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Luminal A'})
-                        stats_df = stats_df.append(series, ignore_index=True)
-                        series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
-                                            'TPR': accuracy_stats['test_tpr'][1], 'FPR': accuracy_stats['test_fpr'][1],
-                                            'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Luminal B'})
-                        stats_df = stats_df.append(series, ignore_index=True)
-                        series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
-                                            'TPR': accuracy_stats['test_tpr'][2], 'FPR': accuracy_stats['test_fpr'][2],
-                                            'Accuracy': accuracy_stats['test_acc'], 'SubType': 'HER2 OverExpression'})
-                        stats_df = stats_df.append(series, ignore_index=True)
-                        series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
-                                            'TPR': accuracy_stats['test_tpr'][3], 'FPR': accuracy_stats['test_fpr'][3],
-                                            'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Triple Negative'})
-                        stats_df = stats_df.append(series, ignore_index=True)
-        # plot TPRs based on site amount
-        g = sns.relplot(x="Site_amount", y="TPR", col="Algorithm", hue="SubType",  markers=True, kind="line", data=stats_df[stats_df.Learning_Rate == 0.0001])
-        g.fig.suptitle("TPR per Subtype")
-        g.savefig('./tpr_subtype_plot_nn.png')
+                    # torch.save(net.state_dict(), './%s_%f_%dnet'%(alg_type, lr, data_amount))
+                    # series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
+                    #                     'TPR': accuracy_stats['test_tpr'][0], 'FPR': accuracy_stats['test_fpr'][0],
+                    #                     'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Luminal A'})
+                    # stats_df = stats_df.append(series, ignore_index=True)
+                    # series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
+                    #                     'TPR': accuracy_stats['test_tpr'][1], 'FPR': accuracy_stats['test_fpr'][1],
+                    #                     'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Luminal B'})
+                    # stats_df = stats_df.append(series, ignore_index=True)
+                    # series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
+                    #                     'TPR': accuracy_stats['test_tpr'][2], 'FPR': accuracy_stats['test_fpr'][2],
+                    #                     'Accuracy': accuracy_stats['test_acc'], 'SubType': 'HER2 OverExpression'})
+                    # stats_df = stats_df.append(series, ignore_index=True)
+                    # series = pd.Series({'Algorithm': alg_type, 'Learning_Rate': lr, 'Site_amount': data_amount,
+                    #                     'TPR': accuracy_stats['test_tpr'][3], 'FPR': accuracy_stats['test_fpr'][3],
+                    #                     'Accuracy': accuracy_stats['test_acc'], 'SubType': 'Triple Negative'})
+                    # stats_df = stats_df.append(series, ignore_index=True)
+        # # plot TPRs based on site amount
+        # g = sns.relplot(x="Site_amount", y="TPR", col="Algorithm", hue="SubType",  markers=True, kind="line", data=stats_df[stats_df.Learning_Rate == 0.0001])
+        # g.fig.suptitle("TPR per Subtype")
+        # g.savefig('./tpr_subtype_plot_nn.png')
     # plt.show()
 
 
