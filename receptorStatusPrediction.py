@@ -1029,6 +1029,8 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
             if center_triplet_loss:
                 loss = criterion(out, centers=None, transform_inds=transform_inds)
             else:
+                import pdb
+                pdb.set_trace()
                 loss = criterion(out, transform_inds)
             loss.backward()
             optimizer.step()
