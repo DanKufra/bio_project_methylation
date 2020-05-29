@@ -748,14 +748,14 @@ def classify_receptor(df, receptor, print_wrong=False):
     pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf, svm_stats, rf_stats = classify(receptor, X_test, X_train, Y_test, Y_train, run_PCA=False)
 
     patients_wrong_test_svm = df.iloc[shuf_test_idx[np.where(pred_test_svm != Y_test)]][REL_COLS]
-    patients_wrong_train_svm = df.iloc[shuf_train_idx[np.where(pred_train_svm != Y_train)]][REL_COLS]
+    # patients_wrong_train_svm = df.iloc[shuf_train_idx[np.where(pred_train_svm != Y_train)]][REL_COLS]
     patients_wrong_test_svm.index.name = 'patient_name'
-    patients_wrong_train_svm.index.name = 'patient_name'
+    # patients_wrong_train_svm.index.name = 'patient_name'
 
     patients_wrong_test_rf = df.iloc[shuf_test_idx[np.where(pred_test_rf != Y_test)]][REL_COLS]
-    patients_wrong_train_rf = df.iloc[shuf_train_idx[np.where(pred_train_rf != Y_train)]][REL_COLS]
+    # patients_wrong_train_rf = df.iloc[shuf_train_idx[np.where(pred_train_rf != Y_train)]][REL_COLS]
     patients_wrong_test_rf.index.name = 'patient_name'
-    patients_wrong_train_rf.index.name = 'patient_name'
+    # patients_wrong_train_rf.index.name = 'patient_name'
 
     if receptor in ['er_ihc', 'pr_ihc'] and print_wrong:
         er_pr_mismatch = df.iloc[np.where(((df['er_ihc'] == 1) & (df['pr_ihc'] == -1)) |
@@ -763,10 +763,10 @@ def classify_receptor(df, receptor, print_wrong=False):
         er_pr_mismatch.index.name = 'patient_name'
         other_receptor = 'er_ihc' if receptor == 'pr_ihc' else 'pr_ihc'
         print("%s wrong pred in mismatch with %s in svm" % (receptor, other_receptor))
-        print(patients_wrong_train_svm.join(er_pr_mismatch, lsuffix='_new', how='inner'))
+        # print(patients_wrong_train_svm.join(er_pr_mismatch, lsuffix='_new', how='inner'))
         print(patients_wrong_test_svm.join(er_pr_mismatch, lsuffix='_new', how='inner'))
         print("%s wrong pred in mismatch with %s in rf" % (receptor, other_receptor))
-        print(patients_wrong_train_rf.join(er_pr_mismatch, lsuffix='_new', how='inner'))
+        # print(patients_wrong_train_rf.join(er_pr_mismatch, lsuffix='_new', how='inner'))
         print(patients_wrong_test_rf.join(er_pr_mismatch, lsuffix='_new', how='inner'))
 
     # lr = 1e-6
