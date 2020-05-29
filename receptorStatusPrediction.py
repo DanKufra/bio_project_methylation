@@ -988,7 +988,7 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
         net = ConvNet(num_conv_layers=7, num_fully_connected_layers=2,
                       fully_connected_input_size=np.floor(X.shape[2] / 2**6), hidden_dim=128).float()
     else:
-        net = Net(hidden_dim=hidden_dim, transform_dim=transform_dim, num_layers=num_layers).float()
+        net = Net(hidden_dim=hidden_dim, transform_dim=transform_dim, num_layers=num_layers, center_triplet_loss=center_triplet_loss).float()
 
     def init_weights(m):
         if type(m) == nn.Linear:
@@ -1013,8 +1013,6 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
             if batch % print_train == 0:
                 print("Epoch num %d batch num %d loss %f" % (epoch, batch, print_loss / print_train))
                 print_loss = 0
-            import pdb
-            pdb.set_trace()
             optimizer.zero_grad()
             # pick random batch
             transform_inds = np.random.randint(0, X.shape[0], batch_size)
