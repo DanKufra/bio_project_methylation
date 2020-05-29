@@ -139,7 +139,7 @@ class ClassifyNet2D(nn.Module):
                     intermediate = x
                     # import pdb
                     # pdb.set_trace()
-                x = self.drop_layer(x)
+                # x = self.drop_layer(x)
                 x = F.relu(layer(x))
             else:
                 x = layer(x)
