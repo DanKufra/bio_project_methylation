@@ -1613,7 +1613,8 @@ if __name__ == '__main__':
                hidden_dim=128, num_layers=3, seed=666, triple_negative=False)
     if args.run_GOAD:
         GOAD(df_clinical)
-
+        import pdb
+        pdb.set_trace()
     # run_nn(df_clinical)
     # import pdb
     # pdb.set_trace()
