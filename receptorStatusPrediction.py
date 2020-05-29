@@ -740,7 +740,7 @@ def classify_receptor(df, receptor, print_wrong=False):
 
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y)
 
-    pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf, svm_stats, rf_stats = classify(receptor, X_test, X_train, Y_test, Y_train)
+    pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf, svm_stats, rf_stats = classify(receptor, X_test, X_train, Y_test, Y_train, run_PCA=False)
 
     patients_wrong_test_svm = df.iloc[shuf_test_idx[np.where(pred_test_svm != Y_test)]][REL_COLS]
     patients_wrong_train_svm = df.iloc[shuf_train_idx[np.where(pred_train_svm != Y_train)]][REL_COLS]
@@ -764,14 +764,14 @@ def classify_receptor(df, receptor, print_wrong=False):
         print(patients_wrong_train_rf.join(er_pr_mismatch, lsuffix='_new', how='inner'))
         print(patients_wrong_test_rf.join(er_pr_mismatch, lsuffix='_new', how='inner'))
 
-    lr = 1e-6
-    alg_type = 'FC'
-    net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, None, None, 128, 3,
-                                             16, 40, lr=lr, num_sites=X_train.shape[1],
-                                             random_data=False,
-                                             do_conv=alg_type in ['CNN', 'CNN_Sep'],
-                                             do_sep=(alg_type == 'CNN_Sep'), alg=alg_type,
-                                             triple_negative=True, do_val=False)
+    # lr = 1e-6
+    # alg_type = 'FC'
+    # net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, None, None, 128, 3,
+    #                                          16, 40, lr=lr, num_sites=X_train.shape[1],
+    #                                          random_data=False,
+    #                                          do_conv=alg_type in ['CNN', 'CNN_Sep'],
+    #                                          do_sep=(alg_type == 'CNN_Sep'), alg=alg_type,
+    #                                          triple_negative=True, do_val=False)
     return svm_stats, rf_stats
 
 
