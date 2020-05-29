@@ -743,8 +743,8 @@ def classify_receptor(df, receptor, print_wrong=False):
     run_smote = True
     if run_smote:
         # sm = BorderlineSMOTE(sampling_strategy='auto', k_neighbors=5, random_state=999)
-        # sm = SMOTE(sampling_strategy='auto', k_neighbors=3, random_state=999)
-        sm = ADASYN(sampling_strategy='auto', n_neighbors=3, random_state=999)
+        sm = SMOTE(sampling_strategy='auto', k_neighbors=3, random_state=999)
+        # sm = ADASYN(sampling_strategy='auto', n_neighbors=3, random_state=999)
         X_train, Y_train = sm.fit_resample(X_train, Y_train)
 
     pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf, svm_stats, rf_stats = classify(receptor, X_test, X_train, Y_test, Y_train, run_PCA=False)
@@ -803,8 +803,8 @@ def classify_multiclass(df, dump_visualization):
 
     X_train, Y_train, X_test, Y_test, shuf_test_idx, shuf_train_idx = shuffle_idx(X, Y)
 
-    # sm = SMOTE(sampling_strategy='auto', k_neighbors=5, random_state=999)
-    # X_train, Y_train = sm.fit_resample(X_train, Y_train)
+    sm = SMOTE(sampling_strategy='auto', k_neighbors=3, random_state=999)
+    X_train, Y_train = sm.fit_resample(X_train, Y_train)
 
     pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf, svm_stats, rf_stats = classify('multiclass', X_test,
                                                                                                X_train, Y_test,
