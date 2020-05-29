@@ -4,7 +4,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn import preprocessing
-from imblearn.over_sampling import SMOTE, BorderlineSMOTE
+from imblearn.over_sampling import SMOTE, BorderlineSMOTE, ADASYN
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import torch
@@ -743,7 +743,8 @@ def classify_receptor(df, receptor, print_wrong=False):
     run_smote = True
     if run_smote:
         # sm = BorderlineSMOTE(sampling_strategy='auto', k_neighbors=5, random_state=999)
-        sm = SMOTE(sampling_strategy='auto', k_neighbors=3, random_state=999)
+        # sm = SMOTE(sampling_strategy='auto', k_neighbors=3, random_state=999)
+        sm = ADASYN(sampling_strategy='auto', n_neighbors=3, random_state=999)
         X_train, Y_train = sm.fit_resample(X_train, Y_train)
 
     pred_test_svm, pred_train_svm, pred_test_rf, pred_train_rf, svm_stats, rf_stats = classify(receptor, X_test, X_train, Y_test, Y_train, run_PCA=False)
