@@ -1039,7 +1039,7 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
     return net, criterion
 
 
-def GOAD(df, use_conv=True, num_transformations=8, transform_dim=256, num_epochs=20, batch_size=16,
+def GOAD(df, use_conv=False, num_transformations=8, transform_dim=256, num_epochs=20, batch_size=16,
          hidden_dim=256, num_layers=5, num_sites=1000, seed=None, center_triplet_loss=True):
     if seed:
         np.random.seed(seed)
