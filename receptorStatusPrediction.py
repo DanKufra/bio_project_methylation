@@ -810,7 +810,7 @@ def classify_multiclass(df, dump_visualization):
                                                                                                X_train, Y_test,
                                                                                                Y_train, multiclass=True,
                                                                                                class_names=RECEPTOR_MULTICLASS_NAMES_REDUCED,
-                                                                                               run_PCA=True, dump_visualization=dump_visualization)
+                                                                                               run_PCA=False, dump_visualization=dump_visualization)
 
     # incorrect_ind_mask = pred_test_rf != Y_test
     incorrect_ind_mask = pred_test_svm != Y_test
