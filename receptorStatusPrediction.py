@@ -1013,6 +1013,8 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
             if batch % print_train == 0:
                 print("Epoch num %d batch num %d loss %f" % (epoch, batch, print_loss / print_train))
                 print_loss = 0
+            import pdb
+            pdb.set_trace()
             optimizer.zero_grad()
             # pick random batch
             transform_inds = np.random.randint(0, X.shape[0], batch_size)
@@ -1029,8 +1031,6 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
             if center_triplet_loss:
                 loss = criterion(out, centers=None, transform_inds=transform_inds)
             else:
-                import pdb
-                pdb.set_trace()
                 loss = criterion(out, transform_inds)
             loss.backward()
             optimizer.step()
@@ -1614,7 +1614,7 @@ if __name__ == '__main__':
         run_nn(df_clinical, num_epochs=50, batch_size=32,
                hidden_dim=128, num_layers=3, seed=666, triple_negative=False)
     if args.run_GOAD:
-        GOAD(df_clinical)
+        GOAD(df_clinical, center_triplet_loss=False)
         import pdb
         pdb.set_trace()
     # run_nn(df_clinical)
