@@ -1239,7 +1239,7 @@ def train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_di
         criterion = torch.nn.CrossEntropyLoss()
     else:
         criterion = torch.nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999),
+    optimizer = optim.Adam(net.parameters(), lr=lr, betas=(0.95, 0.999),
                            eps=1e-08, weight_decay=0.9)
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95, last_epoch=-1)
 
@@ -1459,7 +1459,7 @@ def run_nn(df, num_epochs=50, batch_size=32,
             for data_amount in [10000, 50000, 150000, X_train.shape[1]]:
                 if alg_type in ['Conv', 'Conv_Sep'] and data_amount != X_train.shape[1]:
                     continue
-                for lr in [1e-5]:
+                for lr in [1e-3]:
                     if alg_type == 'Conv':
                         num_layers = 2
                     net, accuracy_stats = train_classify_net(X_train, Y_train, X_test, Y_test, X_val, Y_val, hidden_dim, num_layers,
