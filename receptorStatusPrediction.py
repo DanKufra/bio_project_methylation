@@ -959,9 +959,9 @@ def calc_likelihood(scores, centers):
 
 def get_anomaly_score(X, net, centers):
     # Predict likelihood of each example
-    net_scores = run_predict(X, net)
     import pdb
     pdb.set_trace()
+    net_scores = run_predict(X, net)
     # Create score for examples
     likelihood = calc_likelihood(scores=net_scores, centers=centers)
     score = np.sum(-1*np.log(likelihood), axis=0)
@@ -1028,7 +1028,6 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
             # centers = calc_centers(net, X_real_train_transformed)
             # run neural network and calculate center triplet loss
             out = net.forward(x=x)
-            print(out)
             if center_triplet_loss:
                 loss = criterion(out, centers=None, transform_inds=transform_inds)
             else:
