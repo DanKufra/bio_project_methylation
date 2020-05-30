@@ -295,25 +295,35 @@ class CenterTripletLoss(torch.nn.Module):
         self.push_lambda = push_lambda
         self.pull_lambda = pull_lambda
 
-    def forward(self, x, centers, transform_inds):
-        x = x.reshape(-1, 1)
-        # centers = torch.tensor(centers).reshape(-1, 1).float()
-        centers = self.centers
-        # print(centers)
-        # calc dist matrix (Distance from each sample and each center)
-        dist_mat = torch.sqrt(torch.pow((x - centers.t()), 2))
-        # calc same center mask
-        same_center_mask = torch.FloatTensor(x.shape[0], self.num_classes)
-        same_center_mask.zero_()
-        transform_inds = np.expand_dims(transform_inds, 1)
-        same_center_mask = same_center_mask.scatter_(1, torch.tensor(transform_inds).type(torch.LongTensor), 1)
-
-        pull = (torch.sum(dist_mat*same_center_mask, dim=1) + self.margin) * self.pull_lambda
-        push = torch.min(dist_mat[(1 - same_center_mask).type(torch.bool)].reshape(x.shape[0], -1), dim=1)[0] / self.push_lambda
-
-        loss = torch.sum(F.relu(pull - push))
-        loss /= x.shape[0]
+    def tc_loss(self, zs, m):
+        means = zs.mean(0).unsqueeze(0)
+        res = ((zs.unsqueeze(2) - means.unsqueeze(1)) ** 2).sum(-1)
+        pos = torch.diagonal(res, dim1=1, dim2=2)
+        offset = torch.diagflat(torch.ones(zs.size(1))).unsqueeze(0).cuda() * 1e6
+        neg = (res + offset).min(-1)[0]
+        loss = torch.clamp(pos + m - neg, min=0).mean()
         return loss
+
+    def forward(self, x, centers, transform_inds):
+        return self.tc_loss(x, self.centers)
+        # x = x.reshape(-1, 1)
+        # # centers = torch.tensor(centers).reshape(-1, 1).float()
+        # centers = self.centers
+        # # print(centers)
+        # # calc dist matrix (Distance from each sample and each center)
+        # dist_mat = torch.sqrt(torch.pow((x - centers.t()), 2))
+        # # calc same center mask
+        # same_center_mask = torch.FloatTensor(x.shape[0], self.num_classes)
+        # same_center_mask.zero_()
+        # transform_inds = np.expand_dims(transform_inds, 1)
+        # same_center_mask = same_center_mask.scatter_(1, torch.tensor(transform_inds).type(torch.LongTensor), 1)
+        #
+        # pull = (torch.sum(dist_mat*same_center_mask, dim=1) + self.margin) * self.pull_lambda
+        # push = torch.min(dist_mat[(1 - same_center_mask).type(torch.bool)].reshape(x.shape[0], -1), dim=1)[0] / self.push_lambda
+        #
+        # loss = torch.sum(F.relu(pull - push))
+        # loss /= x.shape[0]
+        # return loss
 
 
 DIAG_MAPPING = {'Positive' : 1, 'Negative': -1,
