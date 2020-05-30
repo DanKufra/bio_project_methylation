@@ -1049,6 +1049,12 @@ def GOAD(df, use_conv=False, num_transformations=8, transform_dim=256, num_epoch
     class_Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
     real_df = df[class_Y == 0]
     anomaly_df = df[class_Y == 2]
+
+    test_idx = ((df['neg_pre_fish'] != df['neg']) | (df['pos_pre_fish'] != df['pos'])) & (~df['NA_pre_fish'])
+    test_idx = test_idx | ((df['her2_ihc'] != df['her2_ihc_level']) & (df['her2_ihc_level'] != -2) & ((df['her2_fish'] == -2) | (df['her2_fish'] == 0)))
+
+    anomaly_df = df[test_idx]
+    real_df = df[df.neg]
     # set anomalies class as Triple Negative and real class as others
     print("Starting GOAD")
     # real_df = df[df.pos == 1]
@@ -1612,7 +1618,7 @@ if __name__ == '__main__':
         run_nn(df_clinical, num_epochs=50, batch_size=32,
                hidden_dim=128, num_layers=3, seed=666, triple_negative=False)
     if args.run_GOAD:
-        GOAD(df_clinical, center_triplet_loss=False)
+        GOAD(df_clinical, num_sites=-1, num_epochs=100, lr=0.0001, num_layers=2)
         import pdb
         pdb.set_trace()
     # run_nn(df_clinical)
