@@ -1619,7 +1619,7 @@ if __name__ == '__main__':
         run_nn(df_clinical, num_epochs=50, batch_size=32,
                hidden_dim=128, num_layers=3, seed=666, triple_negative=False)
     if args.run_GOAD:
-        GOAD(df_clinical, num_sites=-1, num_epochs=100, lr=0.001, num_layers=2)
+        GOAD(df_clinical, num_sites=-1, num_epochs=100, lr=0.0001, num_layers=2)
         import pdb
         pdb.set_trace()
     # run_nn(df_clinical)
