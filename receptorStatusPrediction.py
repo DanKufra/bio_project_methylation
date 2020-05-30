@@ -959,9 +959,9 @@ def calc_likelihood(scores, centers):
 
 def get_anomaly_score(X, net, centers):
     # Predict likelihood of each example
+    net_scores = run_predict(X, net)
     import pdb
     pdb.set_trace()
-    net_scores = run_predict(X, net)
     # Create score for examples
     likelihood = calc_likelihood(scores=net_scores, centers=centers)
     score = np.sum(-1*np.log(likelihood), axis=0)
@@ -1101,7 +1101,8 @@ def GOAD(df, use_conv=False, num_transformations=8, transform_dim=256, num_epoch
     net, criterion = train_net(X_real_train_transformed, num_transformations, hidden_dim, X_real_train_transformed.shape[2], num_layers, batch_size,
                                num_epochs, push_lambda=1, use_conv=use_conv, lr=lr, center_triplet_loss=center_triplet_loss)
     # recalculate centers one last time
-    # centers = calc_centers(net, X_real_train_transformed)
+    centers_calc = calc_centers(net, X_real_train_transformed)
+    print("Calc centers:" + centers_calc)
     if center_triplet_loss:
         centers = criterion.centers.detach().numpy()
 
