@@ -1102,7 +1102,7 @@ def GOAD(df, use_conv=False, num_transformations=8, transform_dim=256, num_epoch
                                num_epochs, push_lambda=1, use_conv=use_conv, lr=lr, center_triplet_loss=center_triplet_loss)
     # recalculate centers one last time
     centers_calc = calc_centers(net, X_real_train_transformed)
-    print("Calc centers:" + centers_calc)
+    print(centers_calc)
     if center_triplet_loss:
         centers = criterion.centers.detach().numpy()
 
