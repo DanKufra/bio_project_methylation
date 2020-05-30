@@ -960,6 +960,8 @@ def calc_likelihood(scores, centers):
 def get_anomaly_score(X, net, centers):
     # Predict likelihood of each example
     net_scores = run_predict(X, net)
+    import pdb
+    pdb.set_trace()
     # Create score for examples
     likelihood = calc_likelihood(scores=net_scores, centers=centers)
     score = np.sum(-1*np.log(likelihood), axis=0)
@@ -1044,8 +1046,6 @@ def GOAD(df, use_conv=False, num_transformations=8, transform_dim=256, num_epoch
     if seed:
         np.random.seed(seed)
     # class_Y = df_to_class_labels(df, classes=CLASSES)
-    # real_df = df[class_Y == 7]
-    # anomaly_df = df[class_Y == 0]
     class_Y = df_to_class_labels(df, classes=CLASSES_REDUCED)
     real_df = df[class_Y == 0]
     anomaly_df = df[class_Y == 2]
