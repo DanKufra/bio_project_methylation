@@ -892,6 +892,8 @@ def plot_tsne(X, Y, reduced_classes=True, pca_dim=128, tsne_dim=2, perplexity=40
 
 
 def transform_samples_array(X_array, num_transformations, transform_dim, seed):
+    import pdb
+    pdb.set_trace()
     X_transformed_array = []
     for X in X_array:
         X_transformed_array.append(np.zeros((num_transformations, X.shape[0], transform_dim)))
