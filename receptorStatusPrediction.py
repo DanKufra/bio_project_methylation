@@ -952,8 +952,6 @@ def calc_likelihood(scores, centers):
     for transform_idx in np.arange(scores.shape[0]):
         for sample_idx in np.arange(scores.shape[1]):
             numerator = np.exp(-1*np.sqrt((scores[transform_idx, sample_idx] - centers[transform_idx])**2)) + epsilon
-            import pdb
-            pdb.set_trace()
             denominator = np.sum(np.exp(-1*np.sqrt((scores[transform_idx, sample_idx] - centers)**2))) + epsilon*scores.shape[0]
             likelihood[transform_idx, sample_idx] = numerator / denominator
     return likelihood
