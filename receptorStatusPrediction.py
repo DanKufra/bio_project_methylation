@@ -1028,6 +1028,7 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
             # centers = calc_centers(net, X_real_train_transformed)
             # run neural network and calculate center triplet loss
             out = net.forward(x=x)
+            print(out)
             if center_triplet_loss:
                 loss = criterion(out, centers=None, transform_inds=transform_inds)
             else:
@@ -1618,7 +1619,7 @@ if __name__ == '__main__':
         run_nn(df_clinical, num_epochs=50, batch_size=32,
                hidden_dim=128, num_layers=3, seed=666, triple_negative=False)
     if args.run_GOAD:
-        GOAD(df_clinical, num_sites=-1, num_epochs=100, lr=0.0001, num_layers=2)
+        GOAD(df_clinical, num_sites=-1, num_epochs=100, lr=0.001, num_layers=2)
         import pdb
         pdb.set_trace()
     # run_nn(df_clinical)
