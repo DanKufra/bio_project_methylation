@@ -305,7 +305,7 @@ class CenterTripletLoss(torch.nn.Module):
         return loss
 
     def forward(self, x, centers, transform_inds):
-        return self.tc_loss(x, self.centers)
+        return self.tc_loss(x, self.margin)
         # x = x.reshape(-1, 1)
         # # centers = torch.tensor(centers).reshape(-1, 1).float()
         # centers = self.centers
@@ -1116,7 +1116,7 @@ def GOAD(df, use_conv=False, num_transformations=8, transform_dim=256, num_epoch
     print(centers_calc)
     if center_triplet_loss:
         centers = criterion.centers.detach().numpy()
-
+        centers = centers_calc
         score_anomaly = get_anomaly_score(X_anomaly_transformed, net, centers)
         print("Score anomaly mean: %f" % np.mean(score_anomaly))
 
