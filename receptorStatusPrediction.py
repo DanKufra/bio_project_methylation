@@ -287,7 +287,7 @@ class RandomGeometricTransformation:
 
 class CenterTripletLoss(torch.nn.Module):
 
-    def __init__(self, num_classes, margin=1.0, pull_lambda=1, push_lambda=1):
+    def __init__(self, num_classes, margin=1.0, pull_lambda=1.0, push_lambda=1.0):
         super(CenterTripletLoss, self).__init__()
         self.margin = margin
         self.num_classes = num_classes
@@ -984,7 +984,7 @@ def plot_centers(centers):
 
 
 def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, batch_size, num_epochs,
-              lr=0.0001, pull_lambda=1, push_lambda=1, use_conv=True, center_triplet_loss=True):
+              lr=0.0001, pull_lambda=1.0, push_lambda=1.0, use_conv=True, center_triplet_loss=True):
     # Learn classifier + centers
     if use_conv:
         net = ConvNet(num_conv_layers=7, num_fully_connected_layers=2,
@@ -1042,7 +1042,8 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
 
 
 def GOAD(df, use_conv=False, num_transformations=8, transform_dim=256, num_epochs=20, batch_size=16,
-         hidden_dim=256, num_layers=5, num_sites=1000, seed=None, center_triplet_loss=True, lr=0.001):
+         hidden_dim=256, num_layers=5, num_sites=1000, seed=None, center_triplet_loss=True, lr=0.001,
+         push_lambda=0.1, pull_lambda=0.1):
     if seed:
         np.random.seed(seed)
     # class_Y = df_to_class_labels(df, classes=CLASSES)
@@ -1099,7 +1100,7 @@ def GOAD(df, use_conv=False, num_transformations=8, transform_dim=256, num_epoch
 
     # Learn classifier + centers
     net, criterion = train_net(X_real_train_transformed, num_transformations, hidden_dim, X_real_train_transformed.shape[2], num_layers, batch_size,
-                               num_epochs, push_lambda=0.1, use_conv=use_conv, lr=lr, center_triplet_loss=center_triplet_loss)
+                               num_epochs, push_lambda=push_lambda, pull_lambda=pull_lambda,  use_conv=use_conv, lr=lr, center_triplet_loss=center_triplet_loss)
     # recalculate centers one last time
     centers_calc = calc_centers(net, X_real_train_transformed)
     print(centers_calc)
