@@ -305,8 +305,8 @@ class CenterTripletLoss(torch.nn.Module):
         return loss
 
     def forward(self, x, centers, transform_inds):
+        x = x.reshape(-1, 1)
         return self.tc_loss(x, self.margin)
-        # x = x.reshape(-1, 1)
         # # centers = torch.tensor(centers).reshape(-1, 1).float()
         # centers = self.centers
         # # print(centers)
