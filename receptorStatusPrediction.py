@@ -1045,7 +1045,7 @@ def train_net(X, num_transformations, hidden_dim, transform_dim, num_layers, bat
 
 def GOAD(df, use_conv=False, num_transformations=8, transform_dim=256, num_epochs=20, batch_size=16,
          hidden_dim=256, num_layers=5, num_sites=1000, seed=None, center_triplet_loss=True, lr=0.001,
-         push_lambda=0.1, pull_lambda=0.1):
+         push_lambda=1.10, pull_lambda=1.0):
     if seed:
         np.random.seed(seed)
     # class_Y = df_to_class_labels(df, classes=CLASSES)
