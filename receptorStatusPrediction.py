@@ -1099,7 +1099,7 @@ def GOAD(df, use_conv=False, num_transformations=8, transform_dim=256, num_epoch
 
     # Learn classifier + centers
     net, criterion = train_net(X_real_train_transformed, num_transformations, hidden_dim, X_real_train_transformed.shape[2], num_layers, batch_size,
-                               num_epochs, push_lambda=1, use_conv=use_conv, lr=lr, center_triplet_loss=center_triplet_loss)
+                               num_epochs, push_lambda=0.1, use_conv=use_conv, lr=lr, center_triplet_loss=center_triplet_loss)
     # recalculate centers one last time
     centers_calc = calc_centers(net, X_real_train_transformed)
     print(centers_calc)
